@@ -1,4 +1,4 @@
-package Ex2;
+package TigerPDP;
 /*
  * Copyright (C) 2011-2015 Rinde van Lon, iMinds-DistriNet, KU Leuven
  *
