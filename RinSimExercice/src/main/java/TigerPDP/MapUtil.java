@@ -7,6 +7,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.github.rinde.rinsim.geom.Point;
+
 public class MapUtil
 {
     public static <K, V extends Comparable<? super V>> Map<K, V> 
@@ -29,4 +31,22 @@ public class MapUtil
         }
         return result;
     }
+    
+    public static Point addPoints(Point p1, Point p2) {
+    	return new Point(p1.x + p2.x, p1.y + p2.y);
+    }
+    
+    public static double pointNorm(Point p) {
+    	return Math.sqrt(Math.pow(p.x,2) + Math.pow(p.y,2));
+    }
+    
+    public static Point rescale(Point p, double scale) {
+    	return new Point(p.x*scale, p.y*scale);
+    }
+    
+    public static Point normalize(Point p) {
+    	return rescale(p, 1/pointNorm(p));
+    }
+    
+   
 }

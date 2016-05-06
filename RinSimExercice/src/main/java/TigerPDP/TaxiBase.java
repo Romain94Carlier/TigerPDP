@@ -25,7 +25,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 
 	private static TaxiBase TAXIBASE;
 	Optional<CommDevice> device;
-	private ArrayList<Taxi> taxis = new ArrayList<Taxi>();
+	private ArrayList<Ant> taxis = new ArrayList<Ant>();
 	private ArrayList<Parcel> customers = new ArrayList<Parcel>();
 	private HashMap<Vehicle,Parcel> assignments;
 
@@ -64,12 +64,12 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 		for(Parcel c : customers)
 			cPositions.put(c,c.getPickupLocation());
 		HashMap<Vehicle,Point> vPositions = new HashMap<Vehicle,Point>();
-		for(Taxi v : taxis)
+		for(Ant v : taxis)
 			vPositions.put(v, v.getPosition().get());
 
 		//2. extract closest pair and find next
-		ArrayList<Taxi> remainingTaxis = new ArrayList<Taxi>(taxis);
-		for(Taxi taxi : taxis){
+		ArrayList<Ant> remainingTaxis = new ArrayList<Ant>(taxis);
+		for(Ant taxi : taxis){
 			if(taxi.isTaken())
 				remainingTaxis.remove(taxi);
 		}
@@ -80,7 +80,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 			for(Parcel c : remainingCustomers) {
 				Point pos = cPositions.get(c);
 				Map<Pair,Double> distances = new HashMap<Pair,Double>();
-				for(Taxi v : remainingTaxis) {
+				for(Ant v : remainingTaxis) {
 					Point taxiPos = vPositions.get(v);
 					distances.put(new Pair(v, c), Point.distance(taxiPos, pos));
 				}
@@ -118,7 +118,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 
 	private void printAssignments(HashMap<Vehicle,Parcel> assignments) {
 		for(Vehicle v : assignments.keySet()){
-			Point taxipos = ((Taxi) v).getPosition().get();
+			Point taxipos = ((Ant) v).getPosition().get();
 			Point customerpos = assignments.get(v).getPickupLocation();
 			System.out.println("taxi pos: "+taxipos+" customer pos : "+customerpos+" distance :"+Point.distance(taxipos, customerpos));
 		}
@@ -141,11 +141,11 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 	public void afterTick(TimeLapse timeLapse) {
 	}
 
-	public static void register(Taxi taxi) {
+	public static void register(Ant taxi) {
 		get().taxis.add(taxi);
 	}
 
-	public static List<Taxi> getTaxis() {
+	public static List<Ant> getTaxis() {
 		return get().taxis;
 	}
 

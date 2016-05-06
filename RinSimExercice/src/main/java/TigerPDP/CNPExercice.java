@@ -100,7 +100,7 @@ public final class CNPExercice {
 
     final String graphFile = args != null && args.length >= 2 ? args[1]
         : MAP_FILE;
-    run(false, endTime, graphFile, null /* new Display() */, null, null);
+    run(false, endTime, graphFile, "gradient field", null /* new Display() */, null, null);
   }
 
   /**
@@ -108,7 +108,7 @@ public final class CNPExercice {
    * @param testing If <code>true</code> enables the test mode.
    */
   public static void run(boolean testing) {
-    run(testing, Long.MAX_VALUE, MAP_FILE, null, null, null);
+    run(testing, Long.MAX_VALUE, MAP_FILE, "gradient field", null, null, null);
   }
 
   /**
@@ -122,7 +122,7 @@ public final class CNPExercice {
    * @return The simulator instance.
    */
   public static Simulator run(boolean testing, final long endTime,
-      String graphFile,
+      String graphFile, String setup,
       @Nullable Display display, @Nullable Monitor m, @Nullable Listener list) {
 
     final View.Builder view = createGui(testing, display, m, list);
@@ -144,18 +144,28 @@ public final class CNPExercice {
     final RoadModel roadModel = simulator.getModelProvider().getModel(
         RoadModel.class);
     // add depots, taxis and parcels to simulator
-    TaxiBase tb = new TaxiBase(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
+    registerCentralizedSimulator(endTime, simulator, rng, roadModel);
+    //registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
+    simulator.start();
+
+    return simulator;
+  }
+
+private static void registerCentralizedSimulator(final long endTime,
+		final Simulator simulator, final RandomGenerator rng,
+		final RoadModel roadModel) {
+	TaxiBase tb = new TaxiBase(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
     TaxiBase.set(tb);
     for (int i = 0; i < NUM_DEPOTS; i++) {
       simulator.register(TaxiBase.get());
     }
     for (int i = 0; i < NUM_TAXIS; i++) {
-    	Taxi nt = new Taxi(roadModel.getRandomPosition(rng), TAXI_CAPACITY);
+    	Ant nt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY);
       simulator.register(nt);
       TaxiBase.register(nt);
     }
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
-    	Customer nc = new Customer(
+    	FoodSource nc = new FoodSource(
     	          Parcel.builder(roadModel.getRandomPosition(rng),
     	                  roadModel.getRandomPosition(rng))
     	                  .serviceDuration(SERVICE_DURATION)
@@ -171,7 +181,7 @@ public final class CNPExercice {
         if (time.getStartTime() > endTime) {
           simulator.stop();
         } else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
-        	Customer nc = new Customer(
+        	FoodSource nc = new FoodSource(
       	          Parcel.builder(roadModel.getRandomPosition(rng),
       	                  roadModel.getRandomPosition(rng))
       	                  .serviceDuration(SERVICE_DURATION)
@@ -185,10 +195,53 @@ public final class CNPExercice {
       @Override
       public void afterTick(TimeLapse timeLapse) {}
     });
-    simulator.start();
+}
 
-    return simulator;
-  }
+private static void registerGradientFieldSimulator(final long endTime,
+		final Simulator simulator, final RandomGenerator rng,
+		final RoadModel roadModel) {
+	GradientField tb = new GradientField(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
+	GradientField.set(tb);
+    for (int i = 0; i < NUM_DEPOTS; i++) {
+      simulator.register(GradientField.get());
+    }
+    for (int i = 0; i < NUM_TAXIS; i++) {
+    Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY);
+      simulator.register(newAnt);
+      GradientField.register(newAnt);
+    }
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
+    	FoodSource nfs = new FoodSource(
+    	          Parcel.builder(roadModel.getRandomPosition(rng),
+    	                  roadModel.getRandomPosition(rng))
+    	                  .serviceDuration(SERVICE_DURATION)
+    	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
+    	                  .buildDTO());
+      simulator.register(nfs);
+      GradientField.register(nfs);
+    }
+    
+    simulator.addTickListener(new TickListener() {
+      @Override
+      public void tick(TimeLapse time) {
+        if (time.getStartTime() > endTime) {
+          simulator.stop();
+        } else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
+        	FoodSource nc = new FoodSource(
+      	          Parcel.builder(roadModel.getRandomPosition(rng),
+      	                  roadModel.getRandomPosition(rng))
+      	                  .serviceDuration(SERVICE_DURATION)
+      	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
+      	                  .buildDTO());
+        simulator.register(nc);
+        GradientField.register(nc);
+        }
+      }
+
+      @Override
+      public void afterTick(TimeLapse timeLapse) {}
+    });
+}
 
   static View.Builder createGui(
       boolean testing,
@@ -203,10 +256,10 @@ public final class CNPExercice {
             .withImageAssociation(
                 TaxiBase.class, "/graphics/perspective/tall-building-64.png")
             .withImageAssociation(
-                Taxi.class, "/graphics/perspective/gas-truck-32.png") //replace
+                Ant.class, "/graphics/perspective/gas-truck-32.png") //replace
             	//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
             .withImageAssociation(
-                Customer.class, "/graphics/flat/person-red-32.png"))
+                FoodSource.class, "/graphics/flat/person-red-32.png"))		//picture food source
                 .with(PDPModelRenderer.builder())
         .withTitleAppendix("Taxi Demo");
 

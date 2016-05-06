@@ -1,33 +1,48 @@
 package TigerPDP;
 
+import java.util.ArrayList;
+
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.ParcelDTO;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.geom.Point;
 
-public abstract class FoodSource extends Parcel {
+public class FoodSource extends Parcel {
 
 	/**
 	 * A prey with very permissive time windows.
 	 */
 	
+	private ArrayList<FoodElement> elements;
+	
 	FoodSource(ParcelDTO dto) {
 		super(dto);
+		elements = new ArrayList<FoodElement>();
 	}
 
 	@Override
 	public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
 	
-	public abstract int getFixedCost ();
+	public float getFixedCost (){
+		return 0;
+	}
 	
 	//I think this should be a small percentage, this is why we return a float
-	public abstract float getVariableCost ();
+	public float getVariableCost (){
+		return 0;
+	}
 	
-	public abstract Point getDestination ();
+	public Point getDestination (){
+		return null;
+	}
 	
-	public abstract int getLifeSpan();
+	public int getLifeSpan(){
+		return 0;
+	}
 	
-	public abstract int getLocation();
+	public int getNumberElements(){
+		return elements.size();
+	}
 	
 }

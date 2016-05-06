@@ -35,14 +35,16 @@ import com.google.common.base.Optional;
  *
  * @author Rinde van Lon
  */
-class Taxi extends Vehicle implements CommUser {
+class Ant extends Vehicle implements CommUser {
+	
+	public static final double VISUAL_RANGE = 1d;	//debug
 	private static final double SPEED = 1000d;
 	private Optional<Parcel> curr;
 
 	Optional<CommDevice> device;
 	Optional<Point> destination;
 
-	Taxi(Point startPosition, int capacity) {
+	Ant(Point startPosition, int capacity) {
 		super(VehicleDTO.builder()
 				.capacity(capacity)
 				.startPosition(startPosition)
@@ -63,6 +65,12 @@ class Taxi extends Vehicle implements CommUser {
 		final RoadModel rm = getRoadModel();
 		final PDPModel pm = getPDPModel();
 
+		//executeCentralizedTick(time, rm, pm);
+		executeGradientFieldTick(time, rm, pm);
+	}
+
+	private void executeCentralizedTick(TimeLapse time, final RoadModel rm,
+			final PDPModel pm) {
 		if (!time.hasTimeLeft()) {
 			return;
 		}		//first check energy before hunting
@@ -73,6 +81,54 @@ class Taxi extends Vehicle implements CommUser {
 			//if so: curr becomes the detected prey and we moveTo(curr)
 			// if not: ask a gradient vector and move or moveTo
 			curr = Optional.fromNullable(TaxiBase.getAssignment(this));		//adapt for better refresh			
+		}
+
+		if (curr.isPresent()) {
+			final boolean inCargo = pm.containerContains(this, curr.get());
+			// sanity check: if it is not in our cargo AND it is also not on the
+			// RoadModel, we cannot go to curr anymore.
+			// TODO: remove from taxibase?
+			if (!inCargo && !rm.containsObject(curr.get())) {
+				curr = Optional.absent();
+			} else if (inCargo) {
+				// if it is in cargo, go to its destination
+				rm.moveTo(this, curr.get().getDeliveryLocation(), time);
+				if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
+					// deliver when we arrive
+					pm.deliver(this, curr.get(), time);
+					
+				}
+			} else {
+				// it is still available, go there as fast as possible
+				rm.moveTo(this, curr.get(), time);
+				if (rm.equalPosition(this, curr.get())) {
+					// pickup customer
+					pm.pickup(this, curr.get(), time);
+					TaxiBase.remove(curr.get());
+				}
+			}
+		}
+	}
+	
+	private void executeGradientFieldTick(TimeLapse time, final RoadModel rm,
+			final PDPModel pm) {
+		destination = Optional.absent();
+		if (!time.hasTimeLeft()) {
+			return;
+		}		//first check energy before hunting
+		if (!curr.isPresent()) {
+			//curr = Optional.fromNullable(RoadModels.findClosestObject(
+					//rm.getPosition(this), rm, Parcel.class));
+			//precheck: (alive) prey within half tick distance
+			//if so: curr becomes the detected prey and we moveTo(curr)
+			// if not: ask a gradient vector and move or moveTo
+			if(true) {	//we dont see food
+				Point gradientVector = GradientField.getGradientField(this);
+				destination = Optional.fromNullable(MapUtil.addPoints(gradientVector, getPosition().get()));
+			} else {
+				//we store the seen food as parcel
+				curr = Optional.fromNullable(GradientField.getFoodFromVisual(this));
+			}
 		}
 
 		if (curr.isPresent()) {
