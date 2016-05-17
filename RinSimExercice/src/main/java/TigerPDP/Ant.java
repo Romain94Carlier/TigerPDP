@@ -28,6 +28,7 @@ import com.github.rinde.rinsim.core.model.road.RoadModels;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Implementation of a very simple taxi agent. It moves to the closest customer,
@@ -36,7 +37,7 @@ import com.google.common.base.Optional;
  * @author Rinde van Lon
  */
 class Ant extends Vehicle implements CommUser {
-	
+
 	public static final double VISUAL_RANGE = 1d;	//debug
 	private static final double SPEED = 1000d;
 	private Optional<Parcel> curr;
@@ -52,14 +53,14 @@ class Ant extends Vehicle implements CommUser {
 				.build());
 		curr = Optional.absent();
 		this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
-		
+
 	}
 
 	@Override
 	public void afterTick(TimeLapse timeLapse) {}
 
 	//strategy for gas refilling and passenger acceptance
-	
+
 	@Override
 	protected void tickImpl(TimeLapse time) {
 		final RoadModel rm = getRoadModel();
@@ -76,7 +77,7 @@ class Ant extends Vehicle implements CommUser {
 		}		//first check energy before hunting
 		if (!curr.isPresent()) {
 			//curr = Optional.fromNullable(RoadModels.findClosestObject(
-					//rm.getPosition(this), rm, Parcel.class));
+			//rm.getPosition(this), rm, Parcel.class));
 			//precheck: (alive) prey within half tick distance
 			//if so: curr becomes the detected prey and we moveTo(curr)
 			// if not: ask a gradient vector and move or moveTo
@@ -96,7 +97,7 @@ class Ant extends Vehicle implements CommUser {
 				if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 					// deliver when we arrive
 					pm.deliver(this, curr.get(), time);
-					
+
 				}
 			} else {
 				// it is still available, go there as fast as possible
@@ -109,7 +110,7 @@ class Ant extends Vehicle implements CommUser {
 			}
 		}
 	}
-	
+
 	private void executeGradientFieldTick(TimeLapse time, final RoadModel rm,
 			final PDPModel pm) {
 		destination = Optional.absent();
@@ -118,25 +119,25 @@ class Ant extends Vehicle implements CommUser {
 		}		//first check energy before hunting
 		if (!curr.isPresent()) {
 			//curr = Optional.fromNullable(RoadModels.findClosestObject(
-					//rm.getPosition(this), rm, Parcel.class));
+			//rm.getPosition(this), rm, Parcel.class));
 			//precheck: (alive) prey within half tick distance
 			//if so: curr becomes the detected prey and we moveTo(curr)
 			// if not: ask a gradient vector and move or moveTo
-			if(true) {	//we dont see food
-				Point gradientVector = GradientField.getGradientField(this);
-				destination = Optional.fromNullable(MapUtil.addPoints(gradientVector, getPosition().get()));
-			} else {
-				//we store the seen food as parcel
-				curr = Optional.fromNullable(GradientField.getFoodFromVisual(this));
-			}
+			curr = Optional.fromNullable(GradientField.getFoodFromVisual(this));
 		}
 
+		if(!curr.isPresent()) {	//we dont see food
+			Point gradientVector = MapUtil.rescale(GradientField.getGradientField(this), 1);
+			Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
+			destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
+			rm.moveTo(this, destination.get(), time);
+		}
 		if (curr.isPresent()) {
 			final boolean inCargo = pm.containerContains(this, curr.get());
 			// sanity check: if it is not in our cargo AND it is also not on the
 			// RoadModel, we cannot go to curr anymore.
 			// TODO: remove from taxibase?
-			if (!inCargo && !rm.containsObject(curr.get())) {
+			if (!inCargo && !rm.containsObject(curr.get())) { //sanity/consistency check
 				curr = Optional.absent();
 			} else if (inCargo) {
 				// if it is in cargo, go to its destination
@@ -144,18 +145,32 @@ class Ant extends Vehicle implements CommUser {
 				if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 					// deliver when we arrive
 					pm.deliver(this, curr.get(), time);
-					
+					GradientField.notifyDelivery();
 				}
 			} else {
 				// it is still available, go there as fast as possible
 				rm.moveTo(this, curr.get(), time);
 				if (rm.equalPosition(this, curr.get())) {
 					// pickup customer
+					curr = Optional.fromNullable(GradientField.pickup((FoodSource) curr.get()));	// ugly
 					pm.pickup(this, curr.get(), time);
-					TaxiBase.remove(curr.get());
+					
 				}
 			}
 		}
+	}
+
+	private Point redirectInBounds(Point point, RoadModel rm) {
+		ImmutableList<Point> bounds = rm.getBounds();
+		if(point.x < bounds.get(0).x)
+			point = new Point(0,point.y);
+		if(point.x > bounds.get(1).x)
+			point = new Point(10,point.y);
+		if(point.y < bounds.get(0).y)
+			point = new Point(point.x,0);
+		if(point.y > bounds.get(1).y)
+			point = new Point(point.x,10);
+		return point;
 	}
 
 	@Override
@@ -170,7 +185,7 @@ class Ant extends Vehicle implements CommUser {
 				.setReliability(1)
 				.build());
 	}
-	
+
 	public boolean isTaken() {		//TODO: private? all interactions through communication eventually
 		return ! (this.curr.equals(Optional.<Parcel>absent()));
 	}

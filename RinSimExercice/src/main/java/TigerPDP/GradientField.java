@@ -1,11 +1,8 @@
 package TigerPDP;
 
-import java.awt.image.RescaleOp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-import javax.sql.PooledConnection;
 
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
 import com.github.rinde.rinsim.core.model.pdp.Depot;
@@ -21,6 +18,7 @@ import com.google.common.base.Optional;
 public class GradientField extends Depot implements TickListener {
 
 	private static GradientField GRADIENTFIELD;
+	private int succesfulDeliveries;
 	Optional<CommDevice> device;
 	private ArrayList<Ant> ants = new ArrayList<Ant>();
 	private ArrayList<FoodSource> sources = new ArrayList<FoodSource>();
@@ -29,15 +27,17 @@ public class GradientField extends Depot implements TickListener {
 	GradientField(Point position, double capacity) {
 		super(position);
 		setCapacity(capacity);
+		gradientVectors = new HashMap<Vehicle,Point>();
+		succesfulDeliveries = 0;
 	}
 
 	public static GradientField get() {
 		return GRADIENTFIELD;
 	}
 
-	public static void set(GradientField taxibase) {
+	public static void set(GradientField gradiendField) {
 		if(GRADIENTFIELD == null)
-			GRADIENTFIELD = taxibase;
+			GRADIENTFIELD = gradiendField;
 		else throw new IllegalArgumentException();
 	}
 
@@ -55,6 +55,8 @@ public class GradientField extends Depot implements TickListener {
 			for(FoodSource food : sources) {
 				resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
 			}
+			resultingVector = MapUtil.normalize(resultingVector);
+			gradientVectors.put(ant, resultingVector);
 		}
 	}
 
@@ -64,10 +66,12 @@ public class GradientField extends Depot implements TickListener {
 		Point p1 = ant.getPosition().get();
 		Point p2 = other.getPosition().get();
 		double distance = Point.distance(p1, p2);
+		if(distance == 0)
+			return new Point(0,0);
 		//threshold for distance
 		Point result = Point.diff(p1, p2);	// debug: order for repulse/attract
 		result = MapUtil.normalize(result);
-		result = MapUtil.rescale(result, 1/distance);
+		result = MapUtil.rescale(result, 2/distance/distance);
 		return result;
 	}
 	
@@ -78,9 +82,9 @@ public class GradientField extends Depot implements TickListener {
 		//TODO: threshold
 		Point result = Point.diff(p2, p1);	// debug: order
 		result = MapUtil.normalize(result);
-		result = MapUtil.rescale(result, 1/distance);
+		result = MapUtil.rescale(result, 1/distance/distance);
 		int remainingFoodModifier = food.getNumberElements(); 	// any other modifiers or does this suffice?
-		result = MapUtil.rescale(result, remainingFoodModifier);
+		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
 		return result;
 	}
 
@@ -101,8 +105,15 @@ public class GradientField extends Depot implements TickListener {
 		get().sources.add(source);
 	}
 
-	public static void remove(Parcel source) {
-		get().sources.remove(source);
+	public static Parcel pickup(FoodSource source) {
+		/*get().sources.remove(source);*/
+		Parcel food = null;
+		if(source.getNumberElements() == 0) {
+			get().sources.remove(source);
+			return source;
+		}
+		else food = source.pickup();
+		return food;
 	}
 
 	public static ArrayList<FoodSource> getFoodSources() {
@@ -129,5 +140,13 @@ public class GradientField extends Depot implements TickListener {
 
 	public static Point getGradientField(Ant ant) {
 		return get().gradientVectors.get(ant);
+	}
+
+	public static void notifyDelivery() {
+		get().succesfulDeliveries ++;
+	}
+
+	public static int getDeliveryCount() {
+		return get().succesfulDeliveries;
 	}
 }

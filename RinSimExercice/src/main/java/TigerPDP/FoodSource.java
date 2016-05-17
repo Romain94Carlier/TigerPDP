@@ -41,8 +41,16 @@ public class FoodSource extends Parcel {
 		return 0;
 	}
 	
+	public void putElement(FoodElement food) {
+		elements.add(food);
+	}
+	
 	public int getNumberElements(){
 		return elements.size();
+	}
+
+	public FoodElement pickup() {
+		return elements.remove(0);
 	}
 	
 }

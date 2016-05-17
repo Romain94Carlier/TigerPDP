@@ -73,7 +73,7 @@ public final class CNPExercice {
 
   private static final int SPEED_UP = 4;
   private static final int MAX_CAPACITY = 3;
-  private static final double NEW_CUSTOMER_PROB = .007*3;
+  private static final double NEW_CUSTOMER_PROB = .007*6/NUM_CUSTOMERS;
 
   private static final String MAP_FILE = "/data/maps/leuven-simple.dot";
   private static final Map<String, Graph<MultiAttributeData>> GRAPH_CACHE =
@@ -144,8 +144,8 @@ public final class CNPExercice {
     final RoadModel roadModel = simulator.getModelProvider().getModel(
         RoadModel.class);
     // add depots, taxis and parcels to simulator
-    registerCentralizedSimulator(endTime, simulator, rng, roadModel);
-    //registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
+    //registerCentralizedSimulator(endTime, simulator, rng, roadModel);
+    registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
     simulator.start();
 
     return simulator;
@@ -200,8 +200,8 @@ private static void registerCentralizedSimulator(final long endTime,
 private static void registerGradientFieldSimulator(final long endTime,
 		final Simulator simulator, final RandomGenerator rng,
 		final RoadModel roadModel) {
-	GradientField tb = new GradientField(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
-	GradientField.set(tb);
+	GradientField gf = new GradientField(MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
+	GradientField.set(gf);
     for (int i = 0; i < NUM_DEPOTS; i++) {
       simulator.register(GradientField.get());
     }
@@ -210,31 +210,53 @@ private static void registerGradientFieldSimulator(final long endTime,
       simulator.register(newAnt);
       GradientField.register(newAnt);
     }
+    Point foodPosition = roadModel.getRandomPosition(rng);
+    FoodSource nfs = new FoodSource(
+	          Parcel.builder(foodPosition,
+	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+	                  .serviceDuration(SERVICE_DURATION)
+	                  .neededCapacity(1)
+	                  .buildDTO());
+    simulator.register(nfs);
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
-    	FoodSource nfs = new FoodSource(
-    	          Parcel.builder(roadModel.getRandomPosition(rng),
-    	                  roadModel.getRandomPosition(rng))
+    	FoodElement nfe = new FoodElement(
+    	          Parcel.builder(foodPosition,
+    	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
     	                  .serviceDuration(SERVICE_DURATION)
-    	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
+    	                  .neededCapacity(1)
     	                  .buildDTO());
-      simulator.register(nfs);
-      GradientField.register(nfs);
+      simulator.register(nfe);
+     nfs.putElement(nfe);
     }
+    GradientField.register(nfs);
     
     simulator.addTickListener(new TickListener() {
       @Override
       public void tick(TimeLapse time) {
+    	  if((simulator.getCurrentTime() % 3600000) == 0)
+    		  System.out.println("succesfulDeliveries: "+GradientField.getDeliveryCount());
         if (time.getStartTime() > endTime) {
           simulator.stop();
         } else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
-        	FoodSource nc = new FoodSource(
-      	          Parcel.builder(roadModel.getRandomPosition(rng),
-      	                  roadModel.getRandomPosition(rng))
-      	                  .serviceDuration(SERVICE_DURATION)
-      	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
-      	                  .buildDTO());
-        simulator.register(nc);
-        GradientField.register(nc);
+        	Point foodPosition = roadModel.getRandomPosition(rng);
+            FoodSource nfs = new FoodSource(
+        	          Parcel.builder(foodPosition,
+        	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+        	                  .serviceDuration(SERVICE_DURATION)
+        	                  .neededCapacity(1)
+        	                  .buildDTO());
+            simulator.register(nfs);
+            for (int i = 0; i < NUM_CUSTOMERS; i++) {
+            	FoodElement nfe = new FoodElement(
+            	          Parcel.builder(foodPosition,
+            	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+            	                  .serviceDuration(SERVICE_DURATION)
+            	                  .neededCapacity(1)
+            	                  .buildDTO());
+              simulator.register(nfe);
+             nfs.putElement(nfe);
+            }
+            GradientField.register(nfs);
         }
       }
 
