@@ -63,8 +63,8 @@ import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
 public final class CNPExercice {
 
   private static final int NUM_DEPOTS = 1;
-  private static final int NUM_TAXIS = 20;
-  private static final int NUM_CUSTOMERS = 30;
+  private static final int NUM_TAXIS = 1;
+  private static final int NUM_CUSTOMERS = 20;
 
   // time in ms
   private static final long SERVICE_DURATION = 60000;
@@ -73,7 +73,7 @@ public final class CNPExercice {
 
   private static final int SPEED_UP = 4;
   private static final int MAX_CAPACITY = 3;
-  private static final double NEW_CUSTOMER_PROB = .007*6/NUM_CUSTOMERS;
+  private static final double NEW_CUSTOMER_PROB = .007*1/NUM_CUSTOMERS;
 
   private static final String MAP_FILE = "/data/maps/leuven-simple.dot";
   private static final Map<String, Graph<MultiAttributeData>> GRAPH_CACHE =
@@ -84,6 +84,8 @@ public final class CNPExercice {
   
   //plane params
   static final double VEHICLE_SPEED_KMH = 50d;
+  static final boolean BOLD_AGENTS = true;		//try out different strategies
+  static final boolean DYNAMIC_AGENTS = true;
   static final Point MIN_POINT = new Point(0, 0);
   static final Point MAX_POINT = new Point(10, 10);
 
@@ -160,7 +162,7 @@ private static void registerCentralizedSimulator(final long endTime,
       simulator.register(TaxiBase.get());
     }
     for (int i = 0; i < NUM_TAXIS; i++) {
-    	Ant nt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY);
+    	Ant nt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
       simulator.register(nt);
       TaxiBase.register(nt);
     }
@@ -206,7 +208,7 @@ private static void registerGradientFieldSimulator(final long endTime,
       simulator.register(GradientField.get());
     }
     for (int i = 0; i < NUM_TAXIS; i++) {
-    Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY);
+    Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
       simulator.register(newAnt);
       GradientField.register(newAnt);
     }
@@ -224,7 +226,7 @@ private static void registerGradientFieldSimulator(final long endTime,
     	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
     	                  .serviceDuration(SERVICE_DURATION)
     	                  .neededCapacity(1)
-    	                  .buildDTO());
+    	                  .buildDTO(), Math.random() * 2 + 1);
       simulator.register(nfe);
      nfs.putElement(nfe);
     }
@@ -252,7 +254,7 @@ private static void registerGradientFieldSimulator(final long endTime,
             	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
             	                  .serviceDuration(SERVICE_DURATION)
             	                  .neededCapacity(1)
-            	                  .buildDTO());
+            	                  .buildDTO(), Math.random() * 2 + 1);
               simulator.register(nfe);
              nfs.putElement(nfe);
             }

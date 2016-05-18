@@ -7,7 +7,6 @@ import java.util.List;
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
 import com.github.rinde.rinsim.core.model.pdp.Depot;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
-import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.time.TickListener;
@@ -23,12 +22,14 @@ public class GradientField extends Depot implements TickListener {
 	private ArrayList<Ant> ants = new ArrayList<Ant>();
 	private ArrayList<FoodSource> sources = new ArrayList<FoodSource>();
 	private HashMap<Vehicle,Point> gradientVectors;
+	private Point position;
 
 	GradientField(Point position, double capacity) {
 		super(position);
 		setCapacity(capacity);
 		gradientVectors = new HashMap<Vehicle,Point>();
 		succesfulDeliveries = 0;
+		this.position = position;
 	}
 
 	public static GradientField get() {
@@ -42,11 +43,18 @@ public class GradientField extends Depot implements TickListener {
 	}
 
 	@Override
-	public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
+	public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
+	}
 
 	@Override
 	public void tick(TimeLapse timeLapse) {
-		
+		// 1: check starving and empty food sources
+		for(FoodSource source : new ArrayList<FoodSource>(sources)) {
+			if(source.isExpired()) {
+				sources.remove(source);
+			}
+		}
+		// 2: calculate gradient fields
 		for(Ant ant : ants) {
 			Point resultingVector = new Point(0, 0);
 			for(Ant other : ants) {
@@ -58,6 +66,8 @@ public class GradientField extends Depot implements TickListener {
 			resultingVector = MapUtil.normalize(resultingVector);
 			gradientVectors.put(ant, resultingVector);
 		}
+		
+		System.out.println("ant 1 energy: "+ants.get(0).getEnergy());
 	}
 
 	private Point repulsiveField(Ant ant, Ant other) {
@@ -105,14 +115,13 @@ public class GradientField extends Depot implements TickListener {
 		get().sources.add(source);
 	}
 
-	public static Parcel pickup(FoodSource source) {
+	public static FoodElement pickup(FoodSource source) {
 		/*get().sources.remove(source);*/
-		Parcel food = null;
+		
+		FoodElement food = source.pickup();
 		if(source.getNumberElements() == 0) {
 			get().sources.remove(source);
-			return source;
 		}
-		else food = source.pickup();
 		return food;
 	}
 
@@ -120,19 +129,19 @@ public class GradientField extends Depot implements TickListener {
 		return get().sources;
 	}
 
-	public static Parcel getFoodFromVisual(Ant ant) {
+	public static FoodSource getFoodFromVisual(Ant ant) {
 		return get().nearestVisibleFood(ant);
 	}
 
-	public Parcel nearestVisibleFood(Ant ant) {
+	public FoodSource nearestVisibleFood(Ant ant) {
 		// develop method for seeing nearby food
 		double shortestDist = 99999999;
-		Parcel nearestFood = null;
-		for(Parcel parcel : sources) {
-			double dist = Point.distance(parcel.getPickupLocation(), ant.getPosition().get());
+		FoodSource nearestFood = null;
+		for(FoodSource foodSource : sources) {
+			double dist = Point.distance(foodSource.getPickupLocation(), ant.getPosition().get());
 			if(dist < Ant.VISUAL_RANGE && dist < shortestDist) {
 				shortestDist = dist;
-				nearestFood = parcel;
+				nearestFood = foodSource;
 			}
 		}
 		return nearestFood;
@@ -148,5 +157,12 @@ public class GradientField extends Depot implements TickListener {
 
 	public static int getDeliveryCount() {
 		return get().succesfulDeliveries;
+	}
+	
+	public static Point getPosition() {
+		return get().position;
+	}
+
+	public static void dropFood(FoodElement el) {
 	}
 }

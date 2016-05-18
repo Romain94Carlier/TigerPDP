@@ -23,6 +23,7 @@ import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
+import com.github.rinde.rinsim.core.model.road.MoveProgress;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModels;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
@@ -38,22 +39,27 @@ import com.google.common.collect.ImmutableList;
  */
 class Ant extends Vehicle implements CommUser {
 
-	public static final double VISUAL_RANGE = 1d;	//debug
+	public static final double VISUAL_RANGE = 0.5d;	//debug
+	private static final double RESTING_RATE = 0.00000003;	//tune
 	private static final double SPEED = 1000d;
+	private static final double MAX_ENERGY = 50;	//tune
 	private Optional<Parcel> curr;
+	private double energy = 50;
+	private boolean resting;
+	private Strategy energyStrategy;
 
 	Optional<CommDevice> device;
 	Optional<Point> destination;
 
-	Ant(Point startPosition, int capacity) {
+	Ant(Point startPosition, int capacity, boolean bold, boolean dynamic) {
 		super(VehicleDTO.builder()
 				.capacity(capacity)
 				.startPosition(startPosition)
 				.speed(SPEED)
 				.build());
 		curr = Optional.absent();
-		this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
-
+		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
+		energyStrategy = new Strategy(bold, dynamic);
 	}
 
 	@Override
@@ -117,46 +123,172 @@ class Ant extends Vehicle implements CommUser {
 		if (!time.hasTimeLeft()) {
 			return;
 		}		//first check energy before hunting
-		if (!curr.isPresent()) {
-			//curr = Optional.fromNullable(RoadModels.findClosestObject(
-			//rm.getPosition(this), rm, Parcel.class));
-			//precheck: (alive) prey within half tick distance
-			//if so: curr becomes the detected prey and we moveTo(curr)
-			// if not: ask a gradient vector and move or moveTo
-			curr = Optional.fromNullable(GradientField.getFoodFromVisual(this));
-		}
-
-		if(!curr.isPresent()) {	//we dont see food
-			Point gradientVector = MapUtil.rescale(GradientField.getGradientField(this), 1);
-			Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
-			destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
-			rm.moveTo(this, destination.get(), time);
-		}
-		if (curr.isPresent()) {
-			final boolean inCargo = pm.containerContains(this, curr.get());
-			// sanity check: if it is not in our cargo AND it is also not on the
-			// RoadModel, we cannot go to curr anymore.
-			// TODO: remove from taxibase?
-			if (!inCargo && !rm.containsObject(curr.get())) { //sanity/consistency check
-				curr = Optional.absent();
-			} else if (inCargo) {
-				// if it is in cargo, go to its destination
-				rm.moveTo(this, curr.get().getDeliveryLocation(), time);
-				if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
-					// deliver when we arrive
+		
+		boolean inCargo = false;
+		
+		if (curr.isPresent())
+			inCargo = pm.containerContains(this, curr.get());
+			
+		if(wantToRest(inCargo)) {
+//			if(pm.containerContains(this, curr.get())) {
+//				pm.drop(this, curr.get(), time);
+//			}
+			
+			Point pos1 = getPosition().get();
+			MoveProgress mp = rm.moveTo(this, GradientField.getPosition(), time);
+			Point pos2 = getPosition().get();
+			double distance = Point.distance(pos1,pos2);
+			energy -= distance;
+			long remaining = time.getTime() - mp.time().getValue();
+			if (rm.getPosition(this).equals(GradientField.getPosition())) {
+				if(curr.isPresent() && pm.containerContains(this, curr.get())){
 					pm.deliver(this, curr.get(), time);
 					GradientField.notifyDelivery();
 				}
-			} else {
-				// it is still available, go there as fast as possible
-				rm.moveTo(this, curr.get(), time);
-				if (rm.equalPosition(this, curr.get())) {
-					// pickup customer
-					curr = Optional.fromNullable(GradientField.pickup((FoodSource) curr.get()));	// ugly
-					pm.pickup(this, curr.get(), time);
+				rest(remaining);
+				curr = Optional.absent();
+			}
+			
+		}
+		else {	//hunt
+			if (!curr.isPresent()) {
+
+				//curr = Optional.fromNullable(RoadModels.findClosestObject(
+				//rm.getPosition(this), rm, Parcel.class));
+				//precheck: (alive) prey within half tick distance
+				//if so: curr becomes the detected prey and we moveTo(curr)
+				// if not: ask a gradient vector and move or moveTo
+				curr = Optional.fromNullable((Parcel) GradientField.getFoodFromVisual(this));
+			}
+
+			if(!curr.isPresent()) {	//we dont see food
+				Point gradientVector = MapUtil.rescale(GradientField.getGradientField(this), 1);
+				Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
+				destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
+				Point pos1 = getPosition().get();
+				rm.moveTo(this, destination.get(), time);
+				Point pos2 = getPosition().get();
+				double distance = Point.distance(pos1,pos2);
+				energy -= distance;
+			}
+			if (curr.isPresent()) {
+				//final boolean inCargo = pm.containerContains(this, curr.get());
+				// sanity check: if it is not in our cargo AND it is also not on the
+				// RoadModel, we cannot go to curr anymore.
+				// TODO: remove from taxibase?
+				if (!inCargo && !rm.containsObject(curr.get())) { //sanity/consistency check
+					curr = Optional.absent();
+				} else if (inCargo) {
+					// if it is in cargo, go to its destination
+					Point pos1 = getPosition().get();
+					rm.moveTo(this, curr.get().getDeliveryLocation(), time);
+					Point pos2 = getPosition().get();
+					double distance = Point.distance(pos1,pos2);
+					energy -= distance*2;
+					if(energy <= 0){
+						//curr = Optional.absent();
+						Parcel it = curr.get();
+						pm.drop(this, it, time);
+						GradientField.dropFood((FoodElement) it);
+						System.out.println("Drop food element");
+					}
 					
+					if (curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
+						// deliver when we arrive
+						pm.deliver(this, curr.get(), time);
+						GradientField.notifyDelivery();
+					}
+				} else {
+					// it is still available, go there as fast as possible
+					Point pos1 = getPosition().get();
+					rm.moveTo(this, curr.get(), time);
+					Point pos2 = getPosition().get();
+					double distance = Point.distance(pos1,pos2);
+					energy -= distance;
+					if (rm.equalPosition(this, curr.get())) {
+						// pickup food element
+						curr = Optional.fromNullable((Parcel) GradientField.pickup((FoodSource) curr.get()));	// ugly
+						//if(curr.isPresent())
+						try {
+							energy -= ((FoodElement) curr.get()).getFixedCost();
+							pm.pickup(this, curr.get(), time);
+						} catch (ClassCastException cce) {
+							curr = Optional.absent();
+							System.out.println("cce");
+						} catch (IllegalStateException iae){
+							System.out.println("Ant reached a depleted food source!");
+						}
+					}
 				}
 			}
+		}
+	}
+
+	private boolean wantToRest(boolean inCargo) {
+		if(resting)
+			return true;
+		boolean result = false;
+		if(energyStrategy.bold == false && energyStrategy.dynamic == false){
+			result = energy < MAX_ENERGY/10;
+		}
+		if(energyStrategy.bold == true && energyStrategy.dynamic == false){
+			result = energy < MAX_ENERGY/20;
+		}
+		if(energyStrategy.bold == false && energyStrategy.dynamic == true){
+			if(curr.isPresent()){
+				if(!inCargo){
+					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
+							+ Point.distance(GradientField.getPosition(), curr.get().getPickupLocation()) * 2;
+					if(distance > (energy + 1)){
+						result = true;
+					}
+				}else{		//food in cargo: determine if we expect to need resting when we deliver
+					if(energy < 3){ //We need a good number here
+						result = true;
+					}
+				}
+			}else {			//roaming the gradient field without parcel
+				if (Point.distance(this.getPosition().get(), GradientField.getPosition()) > energy + 0.2){ //We need a good number here
+					result = true;
+				}
+			}
+		}
+		if(energyStrategy.bold == true && energyStrategy.dynamic == true){
+			if(curr.isPresent()){
+				if(!inCargo){
+					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
+							+ Point.distance(GradientField.getPosition(), curr.get().getPickupLocation()) * 2;
+					if(distance > (energy + 2)){
+						result = true;
+						System.out.println("true because unlikely ant will be able to carry the food it saw back to colony");
+					}
+				}else{		//food in cargo: determine if we expect to need resting when we deliver
+					if(energy < 0){ //We need a good number here, probably doesn't matter much
+						result = true;
+						System.out.println("true because carrying emptied the energy down to 1");
+					}
+				}
+			}else {			//roaming the gradient field without parcel
+				if (Point.distance(this.getPosition().get(), GradientField.getPosition()) > energy + 0.2){ //We need a good number here
+					result = true;
+					System.out.println("true because ant can barely reach the colony");
+				}
+			}
+		}
+		System.out.println("want to rest: "+result);
+		return result;
+	}
+
+	private void rest(long time) {
+		resting = true;
+		double rate;
+		if(energy < 0)
+			rate = RESTING_RATE / 5;
+		else rate = RESTING_RATE;
+		energy += time * rate;	// tune
+		if(energy >= MAX_ENERGY) {
+			energy = MAX_ENERGY;
+			resting = false;
 		}
 	}
 
@@ -188,5 +320,18 @@ class Ant extends Vehicle implements CommUser {
 
 	public boolean isTaken() {		//TODO: private? all interactions through communication eventually
 		return ! (this.curr.equals(Optional.<Parcel>absent()));
+	}
+
+	public double getEnergy() {
+		return this.energy;
+	}
+	
+	public class Strategy {
+		boolean bold;
+		boolean dynamic;
+		Strategy(boolean bold, boolean dynamic){
+			this.bold = bold;
+			this.dynamic = dynamic;
+		}
 	}
 }
