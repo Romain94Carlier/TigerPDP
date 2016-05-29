@@ -19,6 +19,9 @@ import static com.google.common.collect.Maps.newHashMap;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -60,16 +63,17 @@ import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
  * -XstartOnFirstThread as a VM argument.
  * @author Rinde van Lon
  */
-public final class CNPExercice {
+public final class Environment {
 
   private static final int NUM_DEPOTS = 1;
-  private static final int NUM_TAXIS = 1;
+  private static final int NUM_TAXIS = 10;
   private static final int NUM_CUSTOMERS = 20;
 
   // time in ms
   private static final long SERVICE_DURATION = 60000;
   private static final int TAXI_CAPACITY = 10;
   private static final int DEPOT_CAPACITY = 100;
+  private static final int MAX_SOURCES = 5; //Maximum amount of food sources at the same time
 
   private static final int SPEED_UP = 4;
   private static final int MAX_CAPACITY = 3;
@@ -89,7 +93,15 @@ public final class CNPExercice {
   static final Point MIN_POINT = new Point(0, 0);
   static final Point MAX_POINT = new Point(10, 10);
 
-  private CNPExercice() {}
+  //Gradient field parameters
+  private static Colony COLONY; // improve to ArrayList in case we want more than one colony
+  private static ArrayList<Ant> ANTS = new ArrayList<Ant>();
+  private static ArrayList<FoodSource> SOURCES = new ArrayList<FoodSource>();
+  private static ArrayList<FoodElement> DROPPED_FOOD_ELEMENTS = new ArrayList<FoodElement>();
+  private static HashMap<Vehicle,Point> GRADIENT_VECTORS = new HashMap<Vehicle,Point>();
+  private static int SUCCESSFUL_DELIVERIES = 0;
+  
+  private Environment() {}
 
   /**
    * Starts the {@link TaxiExample}.
@@ -202,16 +214,25 @@ private static void registerCentralizedSimulator(final long endTime,
 private static void registerGradientFieldSimulator(final long endTime,
 		final Simulator simulator, final RandomGenerator rng,
 		final RoadModel roadModel) {
-	GradientField gf = new GradientField(MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
-	GradientField.set(gf);
+	
+	//Environment env = new Environment();
+	//Environment.set(env);
+	//simulator.register(env);
+	
     for (int i = 0; i < NUM_DEPOTS; i++) {
-      simulator.register(GradientField.get());
+    	Colony colony = new Colony (MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
+    	simulator.register(colony); 
+    	//Environment.register(colony);
+    	register(colony);
     }
+    
     for (int i = 0; i < NUM_TAXIS; i++) {
-    Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
+      Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
       simulator.register(newAnt);
-      GradientField.register(newAnt);
+      //Environment.register(newAnt);
+      register(newAnt);
     }
+    
     Point foodPosition = roadModel.getRandomPosition(rng);
     FoodSource nfs = new FoodSource(
 	          Parcel.builder(foodPosition,
@@ -220,6 +241,7 @@ private static void registerGradientFieldSimulator(final long endTime,
 	                  .neededCapacity(1)
 	                  .buildDTO());
     simulator.register(nfs);
+    
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
     	FoodElement nfe = new FoodElement(
     	          Parcel.builder(foodPosition,
@@ -230,41 +252,77 @@ private static void registerGradientFieldSimulator(final long endTime,
       simulator.register(nfe);
      nfs.putElement(nfe);
     }
-    GradientField.register(nfs);
+    
+    //Environment.register(nfs);
+    register(nfs);
     
     simulator.addTickListener(new TickListener() {
-      @Override
-      public void tick(TimeLapse time) {
-    	  if((simulator.getCurrentTime() % 3600000) == 0)
-    		  System.out.println("succesfulDeliveries: "+GradientField.getDeliveryCount());
-        if (time.getStartTime() > endTime) {
-          simulator.stop();
-        } else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
-        	Point foodPosition = roadModel.getRandomPosition(rng);
-            FoodSource nfs = new FoodSource(
-        	          Parcel.builder(foodPosition,
-        	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-        	                  .serviceDuration(SERVICE_DURATION)
-        	                  .neededCapacity(1)
-        	                  .buildDTO());
-            simulator.register(nfs);
-            for (int i = 0; i < NUM_CUSTOMERS; i++) {
-            	FoodElement nfe = new FoodElement(
-            	          Parcel.builder(foodPosition,
-            	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-            	                  .serviceDuration(SERVICE_DURATION)
-            	                  .neededCapacity(1)
-            	                  .buildDTO(), Math.random() * 2 + 1);
-              simulator.register(nfe);
-             nfs.putElement(nfe);
-            }
-            GradientField.register(nfs);
-        }
-      }
+        @Override
+        public void tick(TimeLapse time) {
+      	  if((simulator.getCurrentTime() % 3600000) == 0)
+      		  System.out.println("succesfulDeliveries: "+ getDeliveryCount());
+          if (time.getStartTime() > endTime) {
+            simulator.stop();
+          } else 
+          {
+        	  
+          	if (rng.nextDouble() < NEW_CUSTOMER_PROB && SOURCES.size() < MAX_SOURCES) {
+          	Point foodPosition = roadModel.getRandomPosition(rng);
+              FoodSource nfs = new FoodSource(
+          	          Parcel.builder(foodPosition,
+          	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+          	                  .serviceDuration(SERVICE_DURATION)
+          	                  .neededCapacity(1)
+          	                  .buildDTO());
+              simulator.register(nfs);
+              
+              for (int i = 0; i < NUM_CUSTOMERS; i++) {
+              	FoodElement nfe = new FoodElement(
+              	          Parcel.builder(foodPosition,
+              	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+              	                  .serviceDuration(SERVICE_DURATION)
+              	                  .neededCapacity(1)
+              	                  .buildDTO(), Math.random() * 2 + 1);
+                simulator.register(nfe);
+               nfs.putElement(nfe);
+               
+              }
+              register(nfs);
+          }
+          	
+         // 1: check starving and empty food sources
 
-      @Override
-      public void afterTick(TimeLapse timeLapse) {}
-    });
+            for(FoodSource source : new ArrayList<FoodSource>(SOURCES)) {
+	            if(source.isExpired()) {
+	            	SOURCES.remove(source);
+	            }
+            }
+
+            // 2: calculate gradient fields
+            for(Ant ant : ANTS) {
+            	Point resultingVector = new Point(0, 0);
+	            for(Ant other : ANTS) {
+	            	resultingVector = MapUtil.addPoints(resultingVector, repulsiveField(ant, other));
+	            }
+	            
+	            for(FoodSource food : SOURCES) {
+	            	resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
+	            }
+	            resultingVector = MapUtil.normalize(resultingVector);
+	            GRADIENT_VECTORS.put(ant, resultingVector);
+            }
+            
+            // 3: clean dropped food elements
+            for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS) {
+            	simulator.unregister(foodElement);
+            }
+            
+        }
+        }
+
+        @Override
+        public void afterTick(TimeLapse timeLapse) {}
+      });
 }
 
   static View.Builder createGui(
@@ -315,7 +373,7 @@ private static void registerGradientFieldSimulator(final long endTime,
           .getMultiAttributeGraphIO(
               Filters.selfCycleFilter())
           .read(
-              CNPExercice.class.getResourceAsStream(name));
+              Environment.class.getResourceAsStream(name));
 
       GRAPH_CACHE.put(name, g);
       return g;
@@ -326,6 +384,109 @@ private static void registerGradientFieldSimulator(final long endTime,
     }
   }
 
+  
+  /**
+   * Gradient Field methods
+   */
+  
+  private static Point repulsiveField(Ant ant, Ant other) {
+		if(ant.equals(other))
+			return new Point(0,0);
+		Point p1 = ant.getPosition().get();
+		Point p2 = other.getPosition().get();
+		double distance = Point.distance(p1, p2);
+		if(distance == 0)
+			return new Point(0,0);
+		//threshold for distance
+		Point result = Point.diff(p1, p2);	// debug: order for repulse/attract
+		result = MapUtil.normalize(result);
+		result = MapUtil.rescale(result, 2/distance/distance);
+		return result;
+	}
+	
+	private static Point attractiveField(Ant ant, FoodSource food) {
+		Point p1 = ant.getPosition().get();
+		Point p2 = food.getPickupLocation();
+		double distance = Point.distance(p1, p2);
+		//TODO: threshold
+		Point result = Point.diff(p2, p1);	// debug: order
+		result = MapUtil.normalize(result);
+		result = MapUtil.rescale(result, 1/distance/distance);
+		int remainingFoodModifier = food.getNumberElements(); 	// any other modifiers or does this suffice?
+		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
+		return result;
+	}
+
+	public static List<Ant> getAnts() {
+		return ANTS;
+	}
+
+	public static void register(Ant ant) {
+		ANTS.add(ant);
+		GRADIENT_VECTORS.put(ant, ant.getStartPosition()); //Not sure about this! :S
+	}
+	
+	public static void register(Colony colony) {
+		COLONY = colony;
+	}
+	
+	public static void register(FoodSource source) {
+		SOURCES.add(source);
+	}
+
+	public static FoodElement pickup(FoodSource source) {
+		/*get().sources.remove(source);*/
+		
+		FoodElement food = source.pickup();
+		if(source.getNumberElements() == 0) {
+			SOURCES.remove(source);
+		}
+		return food;
+	}
+
+	public static ArrayList<FoodSource> getFoodSources() {
+		return SOURCES;
+	}
+
+	public static FoodSource getFoodFromVisual(Ant ant) {
+		return nearestVisibleFood(ant);
+	}
+
+	public static FoodSource nearestVisibleFood(Ant ant) {
+		// develop method for seeing nearby food
+		double shortestDist = 99999999;
+		FoodSource nearestFood = null;
+		for(FoodSource foodSource : SOURCES) {
+			double dist = Point.distance(foodSource.getPickupLocation(), ant.getPosition().get());
+			if(dist < Ant.VISUAL_RANGE && dist < shortestDist) {
+				shortestDist = dist;
+				nearestFood = foodSource;
+			}
+		}
+		return nearestFood;
+	}
+
+	public static Point getGradientField(Ant ant) {
+		return GRADIENT_VECTORS.get(ant);
+	}
+
+	public static void notifyDelivery() {
+		SUCCESSFUL_DELIVERIES ++;
+	}
+
+	public static int getDeliveryCount() {
+		return SUCCESSFUL_DELIVERIES;
+	}
+	
+	// I'm wondering if the ant can directly ask to the environment, "Hey given the colony position!"
+	public static Point getColonyPosition() {
+		return COLONY.getPosition();
+	}
+  
+	public static void dropFood(FoodElement el) {
+		DROPPED_FOOD_ELEMENTS.add(el);
+	}
+	
   /**
    * A customer with very permissive time windows.
    */
@@ -337,6 +498,8 @@ private static void registerGradientFieldSimulator(final long endTime,
     @Override
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
   }
+
+
 
   // currently has no function
   

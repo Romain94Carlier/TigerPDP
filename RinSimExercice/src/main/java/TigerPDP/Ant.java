@@ -135,15 +135,15 @@ class Ant extends Vehicle implements CommUser {
 //			}
 			
 			Point pos1 = getPosition().get();
-			MoveProgress mp = rm.moveTo(this, GradientField.getPosition(), time);
+			MoveProgress mp = rm.moveTo(this, Environment.getColonyPosition(), time);
 			Point pos2 = getPosition().get();
 			double distance = Point.distance(pos1,pos2);
 			energy -= distance;
 			long remaining = time.getTime() - mp.time().getValue();
-			if (rm.getPosition(this).equals(GradientField.getPosition())) {
+			if (rm.getPosition(this).equals(Environment.getColonyPosition())) {
 				if(curr.isPresent() && pm.containerContains(this, curr.get())){
 					pm.deliver(this, curr.get(), time);
-					GradientField.notifyDelivery();
+					Environment.notifyDelivery();
 				}
 				rest(remaining);
 				curr = Optional.absent();
@@ -158,11 +158,12 @@ class Ant extends Vehicle implements CommUser {
 				//precheck: (alive) prey within half tick distance
 				//if so: curr becomes the detected prey and we moveTo(curr)
 				// if not: ask a gradient vector and move or moveTo
-				curr = Optional.fromNullable((Parcel) GradientField.getFoodFromVisual(this));
+				curr = Optional.fromNullable((Parcel) Environment.getFoodFromVisual(this));
 			}
 
 			if(!curr.isPresent()) {	//we dont see food
-				Point gradientVector = MapUtil.rescale(GradientField.getGradientField(this), 1);
+				Point gradientVector = MapUtil.rescale(Environment.getGradientField(this), 1);
+				//System.out.println("-> we dont see food");
 				Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
 				destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
 				Point pos1 = getPosition().get();
@@ -188,15 +189,16 @@ class Ant extends Vehicle implements CommUser {
 					if(energy <= 0){
 						//curr = Optional.absent();
 						Parcel it = curr.get();
-						pm.drop(this, it, time);
-						GradientField.dropFood((FoodElement) it);
+						///Probably this is not the best way to do it. It should happen in the environment
+						pm.drop(this, it, time); 
+						Environment.dropFood((FoodElement) curr.get());
 						System.out.println("Drop food element");
 					}
 					
 					if (curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 						// deliver when we arrive
 						pm.deliver(this, curr.get(), time);
-						GradientField.notifyDelivery();
+						Environment.notifyDelivery();
 					}
 				} else {
 					// it is still available, go there as fast as possible
@@ -207,7 +209,7 @@ class Ant extends Vehicle implements CommUser {
 					energy -= distance;
 					if (rm.equalPosition(this, curr.get())) {
 						// pickup food element
-						curr = Optional.fromNullable((Parcel) GradientField.pickup((FoodSource) curr.get()));	// ugly
+						curr = Optional.fromNullable((Parcel) Environment.pickup((FoodSource) curr.get()));	// ugly
 						//if(curr.isPresent())
 						try {
 							energy -= ((FoodElement) curr.get()).getFixedCost();
@@ -238,7 +240,7 @@ class Ant extends Vehicle implements CommUser {
 			if(curr.isPresent()){
 				if(!inCargo){
 					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
-							+ Point.distance(GradientField.getPosition(), curr.get().getPickupLocation()) * 2;
+							+ Point.distance(Environment.getColonyPosition(), curr.get().getPickupLocation()) * 2; //*********************************** 
 					if(distance > (energy + 1)){
 						result = true;
 					}
@@ -248,7 +250,7 @@ class Ant extends Vehicle implements CommUser {
 					}
 				}
 			}else {			//roaming the gradient field without parcel
-				if (Point.distance(this.getPosition().get(), GradientField.getPosition()) > energy + 0.2){ //We need a good number here
+				if (Point.distance(this.getPosition().get(), Environment.getColonyPosition()) > energy + 0.2){ //We need a good number here
 					result = true;
 				}
 			}
@@ -257,7 +259,7 @@ class Ant extends Vehicle implements CommUser {
 			if(curr.isPresent()){
 				if(!inCargo){
 					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
-							+ Point.distance(GradientField.getPosition(), curr.get().getPickupLocation()) * 2;
+							+ Point.distance(Environment.getColonyPosition(), curr.get().getPickupLocation()) * 2;
 					if(distance > (energy + 2)){
 						result = true;
 						System.out.println("true because unlikely ant will be able to carry the food it saw back to colony");
@@ -269,13 +271,13 @@ class Ant extends Vehicle implements CommUser {
 					}
 				}
 			}else {			//roaming the gradient field without parcel
-				if (Point.distance(this.getPosition().get(), GradientField.getPosition()) > energy + 0.2){ //We need a good number here
+				if (Point.distance(this.getPosition().get(), Environment.getColonyPosition()) > energy + 0.2){ //We need a good number here
 					result = true;
 					System.out.println("true because ant can barely reach the colony");
 				}
 			}
 		}
-		System.out.println("want to rest: "+result);
+		//System.out.println("want to rest: "+result);
 		return result;
 	}
 
