@@ -65,331 +65,343 @@ import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
  */
 public final class Environment {
 
-  private static final int NUM_DEPOTS = 1;
-  private static final int NUM_TAXIS = 10;
-  private static final int NUM_CUSTOMERS = 20;
+	private static final int NUM_DEPOTS = 1;
+	private static final int NUM_TAXIS = 1;
+	private static final int NUM_CUSTOMERS = 20;
 
-  // time in ms
-  private static final long SERVICE_DURATION = 60000;
-  private static final int TAXI_CAPACITY = 10;
-  private static final int DEPOT_CAPACITY = 100;
-  private static final int MAX_SOURCES = 5; //Maximum amount of food sources at the same time
+	// time in ms
+	private static final long SERVICE_DURATION = 60000;
+	private static final int TAXI_CAPACITY = 10;
+	private static final int DEPOT_CAPACITY = 100;
+	private static final int MAX_SOURCES = 1; //Maximum amount of food sources at the same time
 
-  private static final int SPEED_UP = 4;
-  private static final int MAX_CAPACITY = 3;
-  private static final double NEW_CUSTOMER_PROB = .007*1/NUM_CUSTOMERS;
+	private static final int SPEED_UP = 4;
+	private static final int MAX_CAPACITY = 3;
+	private static final double NEW_CUSTOMER_PROB = .007*1/NUM_CUSTOMERS;
 
-  private static final String MAP_FILE = "/data/maps/leuven-simple.dot";
-  private static final Map<String, Graph<MultiAttributeData>> GRAPH_CACHE =
-      newHashMap();
+	private static final String MAP_FILE = "/data/maps/leuven-simple.dot";
+	private static final Map<String, Graph<MultiAttributeData>> GRAPH_CACHE =
+			newHashMap();
 
-  private static final long TEST_STOP_TIME = 20 * 60 * 1000;
-  private static final int TEST_SPEED_UP = 64;
-  
-  //plane params
-  static final double VEHICLE_SPEED_KMH = 50d;
-  static final boolean BOLD_AGENTS = true;		//try out different strategies
-  static final boolean DYNAMIC_AGENTS = true;
-  static final Point MIN_POINT = new Point(0, 0);
-  static final Point MAX_POINT = new Point(10, 10);
+	private static final long TEST_STOP_TIME = 20 * 60 * 1000;
+	private static final int TEST_SPEED_UP = 64;
 
-  //Gradient field parameters
-  private static Colony COLONY; // improve to ArrayList in case we want more than one colony
-  private static ArrayList<Ant> ANTS = new ArrayList<Ant>();
-  private static ArrayList<FoodSource> SOURCES = new ArrayList<FoodSource>();
-  private static ArrayList<FoodElement> DROPPED_FOOD_ELEMENTS = new ArrayList<FoodElement>();
-  private static HashMap<Vehicle,Point> GRADIENT_VECTORS = new HashMap<Vehicle,Point>();
-  private static int SUCCESSFUL_DELIVERIES = 0;
-  
-  private Environment() {}
+	//plane params
+	static final double VEHICLE_SPEED_KMH = 50d;
+	static final boolean BOLD_AGENTS = true;		//try out different strategies
+	static final boolean DYNAMIC_AGENTS = true;
+	static final Point MIN_POINT = new Point(0, 0);
+	static final Point MAX_POINT = new Point(10, 10);
 
-  /**
-   * Starts the {@link TaxiExample}.
-   * @param args The first option may optionally indicate the end time of the
-   *          simulation.
-   */
-  public static void main(@Nullable String[] args) {
-    final long endTime = args != null && args.length >= 1 ? Long
-        .parseLong(args[0]) : Long.MAX_VALUE;
+	//Gradient field parameters
+	private static Colony COLONY; // improve to ArrayList in case we want more than one colony
+	private static ArrayList<Ant> ANTS = new ArrayList<Ant>();
+	private static ArrayList<FoodSource> SOURCES = new ArrayList<FoodSource>();
+	private static HashMap<FoodElement,Point> DROPPED_FOOD_ELEMENTS = new HashMap<FoodElement,Point>();
+	private static HashMap<Vehicle,Point> GRADIENT_VECTORS = new HashMap<Vehicle,Point>();
+	private static int SUCCESSFUL_DELIVERIES = 0;
 
-    final String graphFile = args != null && args.length >= 2 ? args[1]
-        : MAP_FILE;
-    run(false, endTime, graphFile, "gradient field", null /* new Display() */, null, null);
-  }
+	private Environment() {}
 
-  /**
-   * Run the example.
-   * @param testing If <code>true</code> enables the test mode.
-   */
-  public static void run(boolean testing) {
-    run(testing, Long.MAX_VALUE, MAP_FILE, "gradient field", null, null, null);
-  }
+	/**
+	 * Starts the {@link TaxiExample}.
+	 * @param args The first option may optionally indicate the end time of the
+	 *          simulation.
+	 */
+	public static void main(@Nullable String[] args) {
+		final long endTime = args != null && args.length >= 1 ? Long
+				.parseLong(args[0]) : Long.MAX_VALUE;
 
-  /**
-   * Starts the example.
-   * @param testing Indicates whether the method should run in testing mode.
-   * @param endTime The time at which simulation should stop.
-   * @param graphFile The graph that should be loaded.
-   * @param display The display that should be used to show the ui on.
-   * @param m The monitor that should be used to show the ui on.
-   * @param list A listener that will receive callbacks from the ui.
-   * @return The simulator instance.
-   */
-  public static Simulator run(boolean testing, final long endTime,
-      String graphFile, String setup,
-      @Nullable Display display, @Nullable Monitor m, @Nullable Listener list) {
+				final String graphFile = args != null && args.length >= 2 ? args[1]
+						: MAP_FILE;
+				run(false, endTime, graphFile, "gradient field", null /* new Display() */, null, null);
+	}
 
-    final View.Builder view = createGui(testing, display, m, list);
+	/**
+	 * Run the example.
+	 * @param testing If <code>true</code> enables the test mode.
+	 */
+	public static void run(boolean testing) {
+		run(testing, Long.MAX_VALUE, MAP_FILE, "gradient field", null, null, null);
+	}
 
-    // use map of leuven
-   
-    final Simulator simulator = Simulator.builder()
-        //.addModel(RoadModelBuilders.staticGraph(loadGraph(graphFile)))
-    	.addModel(
-    	     RoadModelBuilders.plane()
-    	         .withMinPoint(MIN_POINT)
-    	         .withMaxPoint(MAX_POINT)
-    	         .withMaxSpeed(VEHICLE_SPEED_KMH))
-        .addModel(DefaultPDPModel.builder())
-        .addModel(view)
-        .build();
-    final RandomGenerator rng = simulator.getRandomGenerator();
+	/**
+	 * Starts the example.
+	 * @param testing Indicates whether the method should run in testing mode.
+	 * @param endTime The time at which simulation should stop.
+	 * @param graphFile The graph that should be loaded.
+	 * @param display The display that should be used to show the ui on.
+	 * @param m The monitor that should be used to show the ui on.
+	 * @param list A listener that will receive callbacks from the ui.
+	 * @return The simulator instance.
+	 */
+	public static Simulator run(boolean testing, final long endTime,
+			String graphFile, String setup,
+			@Nullable Display display, @Nullable Monitor m, @Nullable Listener list) {
 
-    final RoadModel roadModel = simulator.getModelProvider().getModel(
-        RoadModel.class);
-    // add depots, taxis and parcels to simulator
-    //registerCentralizedSimulator(endTime, simulator, rng, roadModel);
-    registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
-    simulator.start();
+		final View.Builder view = createGui(testing, display, m, list);
 
-    return simulator;
-  }
+		// use map of leuven
 
-private static void registerCentralizedSimulator(final long endTime,
-		final Simulator simulator, final RandomGenerator rng,
-		final RoadModel roadModel) {
-	TaxiBase tb = new TaxiBase(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
-    TaxiBase.set(tb);
-    for (int i = 0; i < NUM_DEPOTS; i++) {
-      simulator.register(TaxiBase.get());
-    }
-    for (int i = 0; i < NUM_TAXIS; i++) {
-    	Ant nt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
-      simulator.register(nt);
-      TaxiBase.register(nt);
-    }
-    for (int i = 0; i < NUM_CUSTOMERS; i++) {
-    	FoodSource nc = new FoodSource(
-    	          Parcel.builder(roadModel.getRandomPosition(rng),
-    	                  roadModel.getRandomPosition(rng))
-    	                  .serviceDuration(SERVICE_DURATION)
-    	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
-    	                  .buildDTO());
-      simulator.register(nc);
-      TaxiBase.register(nc);
-    }
-    
-    simulator.addTickListener(new TickListener() {
-      @Override
-      public void tick(TimeLapse time) {
-        if (time.getStartTime() > endTime) {
-          simulator.stop();
-        } else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
-        	FoodSource nc = new FoodSource(
-      	          Parcel.builder(roadModel.getRandomPosition(rng),
-      	                  roadModel.getRandomPosition(rng))
-      	                  .serviceDuration(SERVICE_DURATION)
-      	                  .neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
-      	                  .buildDTO());
-        simulator.register(nc);
-        TaxiBase.register(nc);
-        }
-      }
+		final Simulator simulator = Simulator.builder()
+				//.addModel(RoadModelBuilders.staticGraph(loadGraph(graphFile)))
+				.addModel(
+						RoadModelBuilders.plane()
+						.withMinPoint(MIN_POINT)
+						.withMaxPoint(MAX_POINT)
+						.withMaxSpeed(VEHICLE_SPEED_KMH))
+				.addModel(DefaultPDPModel.builder())
+				.addModel(view)
+				.build();
+		final RandomGenerator rng = simulator.getRandomGenerator();
 
-      @Override
-      public void afterTick(TimeLapse timeLapse) {}
-    });
-}
+		final RoadModel roadModel = simulator.getModelProvider().getModel(
+				RoadModel.class);
+		// add depots, taxis and parcels to simulator
+		//registerCentralizedSimulator(endTime, simulator, rng, roadModel);
+		registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
+		simulator.start();
 
-private static void registerGradientFieldSimulator(final long endTime,
-		final Simulator simulator, final RandomGenerator rng,
-		final RoadModel roadModel) {
-	
-	//Environment env = new Environment();
-	//Environment.set(env);
-	//simulator.register(env);
-	
-    for (int i = 0; i < NUM_DEPOTS; i++) {
-    	Colony colony = new Colony (MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
-    	simulator.register(colony); 
-    	//Environment.register(colony);
-    	register(colony);
-    }
-    
-    for (int i = 0; i < NUM_TAXIS; i++) {
-      Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
-      simulator.register(newAnt);
-      //Environment.register(newAnt);
-      register(newAnt);
-    }
-    
-    Point foodPosition = roadModel.getRandomPosition(rng);
-    FoodSource nfs = new FoodSource(
-	          Parcel.builder(foodPosition,
-	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-	                  .serviceDuration(SERVICE_DURATION)
-	                  .neededCapacity(1)
-	                  .buildDTO());
-    simulator.register(nfs);
-    
-    for (int i = 0; i < NUM_CUSTOMERS; i++) {
-    	FoodElement nfe = new FoodElement(
-    	          Parcel.builder(foodPosition,
-    	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-    	                  .serviceDuration(SERVICE_DURATION)
-    	                  .neededCapacity(1)
-    	                  .buildDTO(), Math.random() * 2 + 1);
-      simulator.register(nfe);
-     nfs.putElement(nfe);
-    }
-    
-    //Environment.register(nfs);
-    register(nfs);
-    
-    simulator.addTickListener(new TickListener() {
-        @Override
-        public void tick(TimeLapse time) {
-      	  if((simulator.getCurrentTime() % 3600000) == 0)
-      		  System.out.println("succesfulDeliveries: "+ getDeliveryCount());
-          if (time.getStartTime() > endTime) {
-            simulator.stop();
-          } else 
-          {
-        	  
-          	if (rng.nextDouble() < NEW_CUSTOMER_PROB && SOURCES.size() < MAX_SOURCES) {
-          	Point foodPosition = roadModel.getRandomPosition(rng);
-              FoodSource nfs = new FoodSource(
-          	          Parcel.builder(foodPosition,
-          	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-          	                  .serviceDuration(SERVICE_DURATION)
-          	                  .neededCapacity(1)
-          	                  .buildDTO());
-              simulator.register(nfs);
-              
-              for (int i = 0; i < NUM_CUSTOMERS; i++) {
-              	FoodElement nfe = new FoodElement(
-              	          Parcel.builder(foodPosition,
-              	        		  MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-              	                  .serviceDuration(SERVICE_DURATION)
-              	                  .neededCapacity(1)
-              	                  .buildDTO(), Math.random() * 2 + 1);
-                simulator.register(nfe);
-               nfs.putElement(nfe);
-               
-              }
-              register(nfs);
-          }
-          	
-         // 1: check starving and empty food sources
+		return simulator;
+	}
 
-            for(FoodSource source : new ArrayList<FoodSource>(SOURCES)) {
-	            if(source.isExpired()) {
-	            	SOURCES.remove(source);
-	            }
-            }
+	private static void registerCentralizedSimulator(final long endTime,
+			final Simulator simulator, final RandomGenerator rng,
+			final RoadModel roadModel) {
+		TaxiBase tb = new TaxiBase(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
+		TaxiBase.set(tb);
+		for (int i = 0; i < NUM_DEPOTS; i++) {
+			simulator.register(TaxiBase.get());
+		}
+		for (int i = 0; i < NUM_TAXIS; i++) {
+			Ant nt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
+			simulator.register(nt);
+			TaxiBase.register(nt);
+		}
+		for (int i = 0; i < NUM_CUSTOMERS; i++) {
+			FoodSource nc = new FoodSource(
+					Parcel.builder(roadModel.getRandomPosition(rng),
+							roadModel.getRandomPosition(rng))
+					.serviceDuration(SERVICE_DURATION)
+					.neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
+					.buildDTO());
+			simulator.register(nc);
+			TaxiBase.register(nc);
+		}
 
-            // 2: calculate gradient fields
-            for(Ant ant : ANTS) {
-            	Point resultingVector = new Point(0, 0);
-	            for(Ant other : ANTS) {
-	            	resultingVector = MapUtil.addPoints(resultingVector, repulsiveField(ant, other));
-	            }
-	            
-	            for(FoodSource food : SOURCES) {
-	            	resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
-	            }
-	            resultingVector = MapUtil.normalize(resultingVector);
-	            GRADIENT_VECTORS.put(ant, resultingVector);
-            }
-            
-            // 3: clean dropped food elements
-            for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS) {
-            	simulator.unregister(foodElement);
-            }
-            
-        }
-        }
+		simulator.addTickListener(new TickListener() {
+			@Override
+			public void tick(TimeLapse time) {
+				if (time.getStartTime() > endTime) {
+					simulator.stop();
+				} else if (rng.nextDouble() < NEW_CUSTOMER_PROB) {
+					FoodSource nc = new FoodSource(
+							Parcel.builder(roadModel.getRandomPosition(rng),
+									roadModel.getRandomPosition(rng))
+							.serviceDuration(SERVICE_DURATION)
+							.neededCapacity(1 + rng.nextInt(MAX_CAPACITY))
+							.buildDTO());
+					simulator.register(nc);
+					TaxiBase.register(nc);
+				}
+			}
 
-        @Override
-        public void afterTick(TimeLapse timeLapse) {}
-      });
-}
+			@Override
+			public void afterTick(TimeLapse timeLapse) {}
+		});
+	}
 
-  static View.Builder createGui(
-      boolean testing,
-      @Nullable Display display,
-      @Nullable Monitor m,
-      @Nullable Listener list) {
+	private static void registerGradientFieldSimulator(final long endTime,
+			final Simulator simulator, final RandomGenerator rng,
+			final RoadModel roadModel) {
 
-	   
-    View.Builder view = View.builder()
-        .with(PlaneRoadModelRenderer.builder())
-        .with(RoadUserRenderer.builder()
-            .withImageAssociation(
-                TaxiBase.class, "/graphics/perspective/tall-building-64.png")
-            .withImageAssociation(
-                Ant.class, "/graphics/perspective/gas-truck-32.png") //replace
-            	//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
-            .withImageAssociation(
-                FoodSource.class, "/graphics/flat/person-red-32.png"))		//picture food source
-                .with(PDPModelRenderer.builder())
-        .withTitleAppendix("Taxi Demo");
+		//Environment env = new Environment();
+		//Environment.set(env);
+		//simulator.register(env);
 
-    if (testing) {
-      view = view.withAutoClose()
-          .withAutoPlay()
-          .withSimulatorEndTime(TEST_STOP_TIME)
-          .withSpeedUp(TEST_SPEED_UP);
-    } else if (m != null && list != null && display != null) {
-      view = view.withMonitor(m)
-          .withSpeedUp(SPEED_UP)
-          .withResolution(m.getClientArea().width, m.getClientArea().height)
-          .withDisplay(display)
-          .withCallback(list)
-          .withAsync()
-          .withAutoPlay()
-          .withAutoClose();
-    }
-    return view;
-  }
+		for (int i = 0; i < NUM_DEPOTS; i++) {
+			Colony colony = new Colony (MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
+			simulator.register(colony); 
+			//Environment.register(colony);
+			register(colony);
+		}
 
-  // load the graph file
-  static Graph<MultiAttributeData> loadGraph(String name) {
-    try {
-      if (GRAPH_CACHE.containsKey(name)) {
-        return GRAPH_CACHE.get(name);
-      }
-      final Graph<MultiAttributeData> g = DotGraphIO
-          .getMultiAttributeGraphIO(
-              Filters.selfCycleFilter())
-          .read(
-              Environment.class.getResourceAsStream(name));
+		for (int i = 0; i < NUM_TAXIS; i++) {
+			Ant newAnt = new Ant(roadModel.getRandomPosition(rng), TAXI_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS);
+			simulator.register(newAnt);
+			//Environment.register(newAnt);
+			register(newAnt);
+		}
 
-      GRAPH_CACHE.put(name, g);
-      return g;
-    } catch (final FileNotFoundException e) {
-      throw new IllegalStateException(e);
-    } catch (final IOException e) {
-      throw new IllegalStateException(e);
-    }
-  }
+		Point foodPosition = roadModel.getRandomPosition(rng);
+		FoodSource nfs = new FoodSource(
+				Parcel.builder(foodPosition,
+						MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+				.serviceDuration(SERVICE_DURATION)
+				.neededCapacity(1)
+				.buildDTO());
+		simulator.register(nfs);
 
-  
-  /**
-   * Gradient Field methods
-   */
-  
-  private static Point repulsiveField(Ant ant, Ant other) {
+		for (int i = 0; i < NUM_CUSTOMERS; i++) {
+			FoodElement nfe = new FoodElement(
+					Parcel.builder(foodPosition,
+							MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+					.serviceDuration(SERVICE_DURATION)
+					.neededCapacity(1)
+					.buildDTO(), Math.random() * 2 + 1);
+			simulator.register(nfe);
+			nfs.putElement(nfe);
+		}
+
+		//Environment.register(nfs);
+		register(nfs);
+
+		simulator.addTickListener(new TickListener() {
+			@Override
+			public void tick(TimeLapse time) {
+				if((simulator.getCurrentTime() % 3600000) == 0)
+					System.out.println("succesfulDeliveries: "+ getDeliveryCount());
+				if (time.getStartTime() > endTime) {
+					simulator.stop();
+				} else 
+				{
+
+					if (rng.nextDouble() < NEW_CUSTOMER_PROB && SOURCES.size() < MAX_SOURCES) {
+						Point foodPosition = roadModel.getRandomPosition(rng);
+						FoodSource nfs = new FoodSource(
+								Parcel.builder(foodPosition,
+										MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+								.serviceDuration(SERVICE_DURATION)
+								.neededCapacity(1)
+								.buildDTO());
+						simulator.register(nfs);
+
+						for (int i = 0; i < NUM_CUSTOMERS; i++) {
+							FoodElement nfe = new FoodElement(
+									Parcel.builder(foodPosition,
+											MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+									.serviceDuration(SERVICE_DURATION)
+									.neededCapacity(1)
+									.buildDTO(), Math.random() * 2 + 1);
+							simulator.register(nfe);
+							nfs.putElement(nfe);
+
+						}
+						register(nfs);
+					}
+
+					// 1: check starving and empty food sources
+
+					for(FoodSource source : new ArrayList<FoodSource>(SOURCES)) {
+						if(source.isExpired()) {
+							SOURCES.remove(source);
+						}
+					}
+
+					// 2: calculate gradient fields
+					for(Ant ant : ANTS) {
+						Point resultingVector = new Point(0, 0);
+						for(Ant other : ANTS) {
+							resultingVector = MapUtil.addPoints(resultingVector, repulsiveField(ant, other));
+						}
+
+						for(FoodSource food : SOURCES) {
+							resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
+						}
+						resultingVector = MapUtil.normalize(resultingVector);
+						if(((Double) resultingVector.x).isNaN())
+							resultingVector = new Point(0,0);
+//							System.out.println("NaN");
+						GRADIENT_VECTORS.put(ant, resultingVector);
+					}
+
+					// 3: clean dropped food elements
+					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
+						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
+								MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+						.serviceDuration(SERVICE_DURATION)
+						.neededCapacity(1)
+						.buildDTO(), foodElement);
+//						simulator.unregister(foodElement);
+						register(nfs);
+						simulator.register(nfs);
+					}
+					DROPPED_FOOD_ELEMENTS.clear();
+				}
+			}
+
+			@Override
+			public void afterTick(TimeLapse timeLapse) {}
+		});
+	}
+
+	static View.Builder createGui(
+			boolean testing,
+			@Nullable Display display,
+			@Nullable Monitor m,
+			@Nullable Listener list) {
+
+
+		View.Builder view = View.builder()
+				.with(PlaneRoadModelRenderer.builder())
+				.with(RoadUserRenderer.builder()
+						.withImageAssociation(
+								TaxiBase.class, "/graphics/perspective/tall-building-64.png")
+						.withImageAssociation(
+								Ant.class, "/graphics/perspective/gas-truck-32.png") //replace
+						//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
+						.withImageAssociation(
+								FoodSource.class, "/graphics/flat/person-red-32.png")
+						.withImageAssociation(
+								DroppedFoodSource.class, "/graphics/flat/person-red-32.png"))		//picture food source
+				.with(PDPModelRenderer.builder())
+				.withTitleAppendix("Taxi Demo");
+
+		if (testing) {
+			view = view.withAutoClose()
+					.withAutoPlay()
+					.withSimulatorEndTime(TEST_STOP_TIME)
+					.withSpeedUp(TEST_SPEED_UP);
+		} else if (m != null && list != null && display != null) {
+			view = view.withMonitor(m)
+					.withSpeedUp(SPEED_UP)
+					.withResolution(m.getClientArea().width, m.getClientArea().height)
+					.withDisplay(display)
+					.withCallback(list)
+					.withAsync()
+					.withAutoPlay()
+					.withAutoClose();
+		}
+		return view;
+	}
+
+	// load the graph file
+	static Graph<MultiAttributeData> loadGraph(String name) {
+		try {
+			if (GRAPH_CACHE.containsKey(name)) {
+				return GRAPH_CACHE.get(name);
+			}
+			final Graph<MultiAttributeData> g = DotGraphIO
+					.getMultiAttributeGraphIO(
+							Filters.selfCycleFilter())
+					.read(
+							Environment.class.getResourceAsStream(name));
+
+			GRAPH_CACHE.put(name, g);
+			return g;
+		} catch (final FileNotFoundException e) {
+			throw new IllegalStateException(e);
+		} catch (final IOException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+
+	/**
+	 * Gradient Field methods
+	 */
+
+	private static Point repulsiveField(Ant ant, Ant other) {
 		if(ant.equals(other))
 			return new Point(0,0);
 		Point p1 = ant.getPosition().get();
@@ -403,7 +415,7 @@ private static void registerGradientFieldSimulator(final long endTime,
 		result = MapUtil.rescale(result, 2/distance/distance);
 		return result;
 	}
-	
+
 	private static Point attractiveField(Ant ant, FoodSource food) {
 		Point p1 = ant.getPosition().get();
 		Point p2 = food.getPickupLocation();
@@ -425,18 +437,18 @@ private static void registerGradientFieldSimulator(final long endTime,
 		ANTS.add(ant);
 		GRADIENT_VECTORS.put(ant, ant.getStartPosition()); //Not sure about this! :S
 	}
-	
+
 	public static void register(Colony colony) {
 		COLONY = colony;
 	}
-	
+
 	public static void register(FoodSource source) {
 		SOURCES.add(source);
 	}
 
 	public static FoodElement pickup(FoodSource source) {
 		/*get().sources.remove(source);*/
-		
+
 		FoodElement food = source.pickup();
 		if(source.getNumberElements() == 0) {
 			SOURCES.remove(source);
@@ -477,32 +489,32 @@ private static void registerGradientFieldSimulator(final long endTime,
 	public static int getDeliveryCount() {
 		return SUCCESSFUL_DELIVERIES;
 	}
-	
+
 	// I'm wondering if the ant can directly ask to the environment, "Hey given the colony position!"
 	public static Point getColonyPosition() {
 		return COLONY.getPosition();
 	}
-  
-	public static void dropFood(FoodElement el) {
-		DROPPED_FOOD_ELEMENTS.add(el);
+
+	public static void dropFood(FoodElement el, Point position) {
+		DROPPED_FOOD_ELEMENTS.put(el,position);
 	}
-	
-  /**
-   * A customer with very permissive time windows.
-   */
-  static class Customer extends Parcel {
-    Customer(ParcelDTO dto) {
-      super(dto);
-    }
 
-    @Override
-    public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
-  }
+	/**
+	 * A customer with very permissive time windows.
+	 */
+	static class Customer extends Parcel {
+		Customer(ParcelDTO dto) {
+			super(dto);
+		}
+
+		@Override
+		public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
+	}
 
 
 
-  // currently has no function
-  
-  
+	// currently has no function
+
+
 
 }

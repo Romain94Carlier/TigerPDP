@@ -66,7 +66,7 @@ public class FoodSource extends Parcel {
 
 	public boolean isExpired() {
 		tickCount ++;
-		boolean expired = (tickCount > 36000);
+		boolean expired = (tickCount > 6000);
 		if(expired) {
 			for(FoodElement el : elements) {
 				pdpModel.unregister(el);
