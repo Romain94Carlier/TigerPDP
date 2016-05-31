@@ -195,7 +195,7 @@ class Ant extends Vehicle implements CommUser {
 						Parcel it = curr.get();
 						///Probably this is not the best way to do it. It should happen in the environment
 						pm.drop(this, it, time); 
-						Environment.dropFood((FoodElement) curr.get(), this.getPosition().get());
+						Environment.dropFood((FoodElement) it, this.getPosition().get());
 						System.out.println("Drop food element");
 						dropping = true;
 					}

@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -72,12 +73,12 @@ public final class Environment {
 	private static final int NUM_COLONIES = 1;
 	private static final int DEPOT_CAPACITY = 100;
 
-	private static final int NUM_ANTS = 20;
+	private static final int NUM_ANTS = 2;
 	private static final int ANT_CAPACITY = 1;
 	private static final double MAX_ENERGY = 5*MAP_SCALE;
 
 	private static final int NUM_FOOD_SOURCE = 5;
-	private static final int FOOD_SOURCE_SIZE = 10;
+	private static final int FOOD_SOURCE_SIZE = 1;
 	private static final int FOOD_ELEMENT_VOLUME = 1;
 	private static final long SERVICE_DURATION = 60000;
 	private static final double NEW_FOOD_SOURCE_PROB = .007*10/FOOD_SOURCE_SIZE;
@@ -94,7 +95,7 @@ public final class Environment {
 	private static final int TEST_SPEED_UP = 64;
 
 	//plane params
-	static final double VEHICLE_SPEED_KMH = 500d;
+	static final double VEHICLE_SPEED_KMH = 5d*MAP_SCALE;
 	static final boolean BOLD_AGENTS = true;		//try out different strategies
 	static final boolean DYNAMIC_AGENTS = true;
 	static final Point MIN_POINT = new Point(0, 0);
@@ -277,12 +278,7 @@ public final class Environment {
 		simulator.addTickListener(new TickListener() {
 			@Override
 			public void tick(TimeLapse time) {
-				if((simulator.getCurrentTime() % 3600000) == 0 && simulator.getCurrentTime()>0) {
-					System.out.println("succesfulDeliveries: "+ getDeliveryCount());
-					double antCount = ((double) getDeliveryCount())/((double) NUM_ANTS);
-					System.out.println("ant efficiency: "+antCount);
-					System.out.println("per simulation minute: "+antCount/(simulator.getCurrentTime()/3600000));
-				}
+				
 				if (time.getStartTime() > endTime) {
 					simulator.stop();
 				} else 
@@ -350,22 +346,25 @@ public final class Environment {
 
 					//					}
 					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
-						//simulator.unregister(foodElement);
+//						simulator.unregister(foodElement);
 
-//						FoodElement nfe = new FoodElement(
-//								Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
-//										MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
-//								.serviceDuration(SERVICE_DURATION)
-//								.neededCapacity(1)
-//								.buildDTO(), Math.random() * 2 + 1);
-//						simulator.register(nfe);
-
+						FoodElement nfe = new FoodElement(
+								Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
+										MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+								.serviceDuration(SERVICE_DURATION)
+								.neededCapacity(1)
+								.buildDTO(), Math.random() * 2 + 1);
+						simulator.register(nfe);
+//						register(nfe);
+						foodElement.destroy();
+						
+						//foodElement.setLocation(DROPPED_FOOD_ELEMENTS.get(foodElement));
 
 						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
 								MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
 								.serviceDuration(SERVICE_DURATION)
 								.neededCapacity(1)
-								.buildDTO(), foodElement);
+								.buildDTO(), nfe);
 
 						register(nfs);
 						simulator.register(nfs);
@@ -385,7 +384,27 @@ public final class Environment {
 			}
 
 			@Override
-			public void afterTick(TimeLapse timeLapse) {}
+			public void afterTick(TimeLapse timeLapse) {
+				if((simulator.getCurrentTime() % 3600000) == 0 && simulator.getCurrentTime()>0) {
+					System.out.println("succesfulDeliveries: "+ getDeliveryCount());
+					double antCount = ((double) getDeliveryCount())/((double) NUM_ANTS);
+					System.out.println("ant efficiency: "+antCount);
+					System.out.println("per simulation minute: "+antCount/(simulator.getCurrentTime()/3600000));
+					Map<RoadUser, Point> debug = roadModel.getObjectsAndPositions();
+					for(RoadUser ru : new HashSet<RoadUser>(debug.keySet())){
+						if(ru instanceof Ant)
+							debug.remove(ru);
+						else if(ru instanceof Colony)
+							debug.remove(ru);
+//						else if(ru instanceof FoodSource && !(ru instanceof FoodElement))
+//							debug.remove(ru);
+						else if(ru instanceof FoodElement && (simulator.getModelProvider().getModel(DefaultPDPModel.class).getParcelState((FoodElement) ru)).equals(ParcelState.DELIVERED))
+							debug.remove(ru);
+						else System.out.print("("+Math.round(((FoodSource) ru).getPickupLocation().x)+","+Math.round(((FoodSource) ru).getPickupLocation().y)+") ");
+					}
+					System.out.println("wait");
+				}
+			}
 		});
 	}
 
@@ -479,6 +498,8 @@ public final class Environment {
 		result = MapUtil.normalize(result);
 		result = MapUtil.rescale(result, 1/distance/distance);
 		int remainingFoodModifier = food.getNumberElements(); 	// any other modifiers or does this suffice?
+		if(remainingFoodModifier == 0)
+			System.out.println("depleted food source");
 		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
 		return result;
 	}

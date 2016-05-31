@@ -16,8 +16,8 @@ public class FoodSource extends Parcel {
 	 */
 
 	private ArrayList<FoodElement> elements;
-	private PDPModel pdpModel;
-	private RoadModel roadModel;
+	protected PDPModel pdpModel;
+	protected RoadModel roadModel;
 	private int tickCount;
 
 	FoodSource(ParcelDTO dto) {
@@ -54,6 +54,10 @@ public class FoodSource extends Parcel {
 	}
 
 	public FoodElement pickup() {
+		return executePickup();
+	}
+	
+	protected FoodElement executePickup() {
 		FoodElement elem = null;
 		if(elements.size() > 0)
 			elem = elements.remove(0);
