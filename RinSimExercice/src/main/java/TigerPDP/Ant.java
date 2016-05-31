@@ -40,18 +40,18 @@ import com.google.common.collect.ImmutableList;
 class Ant extends Vehicle implements CommUser {
 
 	public static final double VISUAL_RANGE = 0.5d;	//debug
-	private static final double RESTING_RATE = 0.00000003;	//tune
+	private final double RESTING_RATE;	//tune
 	private static final double SPEED = 1000d;
-	private static final double MAX_ENERGY = 50;	//tune
+	private final double maxEnergy;	//tune
 	private Optional<Parcel> curr;
-	private double energy = 50;
+	private double energy;
 	private boolean resting;
 	private Strategy energyStrategy;
 
 	Optional<CommDevice> device;
 	Optional<Point> destination;
 
-	Ant(Point startPosition, int capacity, boolean bold, boolean dynamic) {
+	Ant(Point startPosition, int capacity, boolean bold, boolean dynamic, double maxEnergy) {
 		super(VehicleDTO.builder()
 				.capacity(capacity)
 				.startPosition(startPosition)
@@ -60,6 +60,9 @@ class Ant extends Vehicle implements CommUser {
 		curr = Optional.absent();
 		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
 		energyStrategy = new Strategy(bold, dynamic);
+		energy = maxEnergy;
+		this.maxEnergy = maxEnergy;
+		RESTING_RATE = 0.00000003*maxEnergy/50;
 	}
 
 	@Override
@@ -186,6 +189,7 @@ class Ant extends Vehicle implements CommUser {
 					Point pos2 = getPosition().get();
 					double distance = Point.distance(pos1,pos2);
 					energy -= distance*2;
+					boolean dropping = false;
 					if(energy <= 0){
 						//curr = Optional.absent();
 						Parcel it = curr.get();
@@ -193,9 +197,10 @@ class Ant extends Vehicle implements CommUser {
 						pm.drop(this, it, time); 
 						Environment.dropFood((FoodElement) curr.get(), this.getPosition().get());
 						System.out.println("Drop food element");
+						dropping = true;
 					}
 					
-					if (curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
+					if (!dropping && curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 						// deliver when we arrive
 						pm.deliver(this, curr.get(), time);
 						Environment.notifyDelivery();
@@ -217,8 +222,11 @@ class Ant extends Vehicle implements CommUser {
 						} catch (ClassCastException cce) {
 							curr = Optional.absent();
 							System.out.println("cce");
-						} catch (IllegalStateException iae){
+						} catch (IllegalStateException ise){
 							System.out.println("Ant reached a depleted food source!");
+						} catch (IllegalArgumentException ise){
+							ise.printStackTrace();
+//							throw ise;
 						}
 					}
 				}
@@ -231,10 +239,10 @@ class Ant extends Vehicle implements CommUser {
 			return true;
 		boolean result = false;
 		if(energyStrategy.bold == false && energyStrategy.dynamic == false){
-			result = energy < MAX_ENERGY/10;
+			result = energy < maxEnergy/10;
 		}
 		if(energyStrategy.bold == true && energyStrategy.dynamic == false){
-			result = energy < MAX_ENERGY/20;
+			result = energy < maxEnergy/20;
 		}
 		if(energyStrategy.bold == false && energyStrategy.dynamic == true){
 			if(curr.isPresent()){
@@ -262,7 +270,7 @@ class Ant extends Vehicle implements CommUser {
 							+ Point.distance(Environment.getColonyPosition(), curr.get().getPickupLocation()) * 2;
 					if(distance > (energy + 2)){
 						result = true;
-						System.out.println("true because unlikely ant will be able to carry the food it saw back to colony");
+						//System.out.println("true because unlikely ant will be able to carry the food it saw back to colony");
 					}
 				}else{		//food in cargo: determine if we expect to need resting when we deliver
 					if(energy < 0){ //We need a good number here, probably doesn't matter much
@@ -288,8 +296,8 @@ class Ant extends Vehicle implements CommUser {
 			rate = RESTING_RATE / 5;
 		else rate = RESTING_RATE;
 		energy += time * rate;	// tune
-		if(energy >= MAX_ENERGY) {
-			energy = MAX_ENERGY;
+		if(energy >= maxEnergy) {
+			energy = maxEnergy;
 			resting = false;
 		}
 	}
