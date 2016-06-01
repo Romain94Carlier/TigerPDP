@@ -83,4 +83,8 @@ public class FoodSource extends Parcel {
 		return expired;
 	}
 
+	public Point getPosition() {
+		return getPickupLocation();
+	}
+
 }

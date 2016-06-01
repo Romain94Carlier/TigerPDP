@@ -39,7 +39,7 @@ import com.google.common.collect.ImmutableList;
  */
 class Ant extends Vehicle implements CommUser {
 
-	public static final double VISUAL_RANGE = 0.5d;	//debug
+	public static final double VISUAL_RANGE = 2.5d;	//debug
 	private final double RESTING_RATE;	//tune
 	private static final double SPEED = 1000d;
 	private final double maxEnergy;	//tune
@@ -161,7 +161,10 @@ class Ant extends Vehicle implements CommUser {
 				//precheck: (alive) prey within half tick distance
 				//if so: curr becomes the detected prey and we moveTo(curr)
 				// if not: ask a gradient vector and move or moveTo
-				curr = Optional.fromNullable((Parcel) Environment.getFoodFromVisual(this));
+				FoodSource seen = Environment.getFoodFromVisual(this);
+				if(seen instanceof DroppedFoodSource)
+					System.out.println("seen dropped food source");
+				curr = Optional.fromNullable((Parcel) seen);
 			}
 
 			if(!curr.isPresent()) {	//we dont see food
@@ -281,7 +284,7 @@ class Ant extends Vehicle implements CommUser {
 			}else {			//roaming the gradient field without parcel
 				if (Point.distance(this.getPosition().get(), Environment.getColonyPosition()) > energy + 0.2){ //We need a good number here
 					result = true;
-					System.out.println("true because ant can barely reach the colony");
+//					System.out.println("true because ant can barely reach the colony");
 				}
 			}
 		}

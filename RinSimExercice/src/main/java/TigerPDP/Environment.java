@@ -68,12 +68,14 @@ import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
  */
 public final class Environment {
 
+	private static FoodElement destroyedFood;
+	
 	private static final int MAP_SCALE = 100;
 
 	private static final int NUM_COLONIES = 1;
 	private static final int DEPOT_CAPACITY = 100;
 
-	private static final int NUM_ANTS = 2;
+	private static final int NUM_ANTS = 20;
 	private static final int ANT_CAPACITY = 1;
 	private static final double MAX_ENERGY = 5*MAP_SCALE;
 
@@ -333,6 +335,11 @@ public final class Environment {
 						GRADIENT_VECTORS.put(ant, resultingVector);
 					}
 
+					if(roadModel.containsObject(destroyedFood)) {
+						System.out.println("contained destroyed food");
+						roadModel.removeObject(destroyedFood);
+					}
+					
 					// 3: clean dropped food elements
 					//					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
 					//						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
@@ -345,22 +352,32 @@ public final class Environment {
 					//						simulator.register(nfs);
 
 					//					}
+//					if(roadModel.getObjects().size() == 8)
+//						System.out.println("8 road users");
 					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
 //						simulator.unregister(foodElement);
-
+						
+						Point usedPosition = DROPPED_FOOD_ELEMENTS.get(foodElement);
+						System.out.println("used position: "+usedPosition);
 						FoodElement nfe = new FoodElement(
-								Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
+								Parcel.builder(usedPosition,
 										MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
 								.serviceDuration(SERVICE_DURATION)
 								.neededCapacity(1)
 								.buildDTO(), Math.random() * 2 + 1);
 						simulator.register(nfe);
+						System.out.println("registered nfe "+nfe.toString());
 //						register(nfe);
-						foodElement.destroy();
+						destroyedFood = foodElement;
+						//foodElement.destroy();
+						if(!roadModel.containsObject(destroyedFood))
+							System.out.println("not contains destroyed food");
+						System.out.println("destroyed fe "+foodElement.toString());
+//						roadModel.removeObject(foodElement);
 						
 						//foodElement.setLocation(DROPPED_FOOD_ELEMENTS.get(foodElement));
 
-						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(DROPPED_FOOD_ELEMENTS.get(foodElement),
+						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(usedPosition,
 								MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
 								.serviceDuration(SERVICE_DURATION)
 								.neededCapacity(1)
@@ -368,6 +385,7 @@ public final class Environment {
 
 						register(nfs);
 						simulator.register(nfs);
+						System.out.println("registered nfs "+nfs.toString());
 						//simulator.unregister(foodElement);
 //						boolean modified = simulator.getModelProvider().getModel(DefaultPDPModel.class).unregister(foodElement);
 //						
@@ -377,14 +395,17 @@ public final class Environment {
 //						if(!modified)	 
 //							System.out.println("inconsistent dpmodel");
 //						else
-//							DROPPED_FOOD_ELEMENTS.remove(foodElement);
+							DROPPED_FOOD_ELEMENTS.remove(foodElement);
 					}
-					DROPPED_FOOD_ELEMENTS.clear();
+//					DROPPED_FOOD_ELEMENTS.clear();
+					
 				}
 			}
 
 			@Override
 			public void afterTick(TimeLapse timeLapse) {
+				
+				// only at simulator minutes
 				if((simulator.getCurrentTime() % 3600000) == 0 && simulator.getCurrentTime()>0) {
 					System.out.println("succesfulDeliveries: "+ getDeliveryCount());
 					double antCount = ((double) getDeliveryCount())/((double) NUM_ANTS);
@@ -419,16 +440,16 @@ public final class Environment {
 				.with(PlaneRoadModelRenderer.builder())
 				.with(RoadUserRenderer.builder()
 						.withImageAssociation(
-								TaxiBase.class, "/graphics/perspective/tall-building-64.png")
+								Colony.class, "/ant_colony.png")
 						.withImageAssociation(
-								Ant.class, "/graphics/perspective/gas-truck-32.png") //replace
+								Ant.class, "/small_ant.png") //replace
 						//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
 						.withImageAssociation(
-								FoodSource.class, "/graphics/flat/person-red-32.png")
+								FoodSource.class, "/tiny_wheat.png") //"/src/main/resources/wheat-stalk.jpg")
 						.withImageAssociation(
-								DroppedFoodSource.class, "/graphics/flat/person-red-32.png"))		//picture food source
-				.with(PDPModelRenderer.builder())
-				.withTitleAppendix("Taxi Demo");
+								DroppedFoodSource.class, "/graphics/flat/person-red-32.png")		//picture food source
+				).with(PDPModelRenderer.builder())
+				.withTitleAppendix("Ant colony Demo");
 
 		if (testing) {
 			view = view.withAutoClose()
@@ -491,7 +512,7 @@ public final class Environment {
 
 	private static Point attractiveField(Ant ant, FoodSource food) {
 		Point p1 = ant.getPosition().get();
-		Point p2 = food.getPickupLocation();
+		Point p2 = food.getPosition();
 		double distance = Point.distance(p1, p2);
 		//TODO: threshold
 		Point result = Point.diff(p2, p1);	// debug: order
@@ -544,10 +565,12 @@ public final class Environment {
 		double shortestDist = 99999999;
 		FoodSource nearestFood = null;
 		for(FoodSource foodSource : SOURCES) {
-			double dist = Point.distance(foodSource.getPickupLocation(), ant.getPosition().get());
+			double dist = Point.distance(foodSource.getPosition(), ant.getPosition().get());
 			if(dist < Ant.VISUAL_RANGE && dist < shortestDist) {
 				shortestDist = dist;
 				nearestFood = foodSource;
+				if(dist == 0.0)
+					System.out.println("on food element");
 			}
 		}
 		return nearestFood;

@@ -30,7 +30,7 @@ public class FoodElement extends FoodSource {
 	public void destroy() {
 		roadModel.unregister(this);
 		pdpModel.unregister(this);
-		System.out.println("food element destroyed, with position: "+"("+Math.round(this.getPickupLocation().x)+","+Math.round(this.getPickupLocation().y)+")");
+		System.out.println("food element destroyed, with position: "+"("+Math.round(this.getPickupLocation().x)+","+Math.round(this.getPickupLocation().y)+") "+this.toString());
 		try {
 			this.finalize();
 		} catch (Throwable e) {
