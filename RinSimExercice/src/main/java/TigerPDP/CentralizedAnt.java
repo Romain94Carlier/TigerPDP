@@ -31,11 +31,11 @@ import com.google.common.base.Optional;
  *
  * @author Rinde van Lon
  */
-class Taxi extends Vehicle {
+class CentralizedAnt extends Vehicle {
   private static final double SPEED = 1000d;
   private Optional<Parcel> curr;
 
-  Taxi(Point startPosition, int capacity) {
+  CentralizedAnt(Point startPosition, int capacity) {
     super(VehicleDTO.builder()
       .capacity(capacity)
       .startPosition(startPosition)

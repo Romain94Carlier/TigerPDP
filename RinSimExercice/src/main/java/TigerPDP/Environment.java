@@ -76,6 +76,7 @@ public final class Environment {
 	private static FoodElement destroyedFood;
 	
 	private static final int MAP_SCALE = 100;
+	private static final boolean CENTRALIZED = true;
 
 	private static final int NUM_COLONIES = 1;
 	private static final int DEPOT_CAPACITY = 100;
@@ -173,8 +174,10 @@ public final class Environment {
 		final RoadModel roadModel = simulator.getModelProvider().getModel(
 				RoadModel.class);
 		// add depots, taxis and parcels to simulator
-		registerCentralizedSimulator(endTime, simulator, rng, roadModel);
-		//registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
+		if (CENTRALIZED)
+			registerCentralizedSimulator(endTime, simulator, rng, roadModel);
+		else
+			registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
 		simulator.start();
 
 		return simulator;
@@ -185,13 +188,15 @@ public final class Environment {
 			final RoadModel roadModel) {
 		
 		 for (int i = 0; i < NUM_COLONIES; i++) {
-		      simulator.register(new TaxiBase(roadModel.getRandomPosition(rng),
+		      //simulator.register(new TaxiBase(roadModel.getRandomPosition(rng),
+			 simulator.register(new TaxiBase(MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5),
 		        DEPOT_CAPACITY));
 		    }
 		    for (int i = 0; i < NUM_ANTS; i++) {
-		      simulator.register(new Taxi(roadModel.getRandomPosition(rng),
+		      simulator.register(new CentralizedAnt(roadModel.getRandomPosition(rng),
 		        ANT_CAPACITY));
 		    }
+		    /*
 		    for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
 		      simulator.register(new Customer(
 		        Parcel.builder(roadModel.getRandomPosition(rng),
@@ -199,21 +204,63 @@ public final class Environment {
 		          .serviceDuration(SERVICE_DURATION)
 		          .neededCapacity(1) // This part should be fixed
 		          .buildDTO()));
-		    }
+		    }*/
+		    
+			for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
+				Point foodPosition = roadModel.getRandomPosition(rng);
+				FoodSource nfs = new FoodSource(
+						Parcel.builder(foodPosition,
+								MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+						.serviceDuration(SERVICE_DURATION)
+						.neededCapacity(1) // This part should be fixed
+						.buildDTO());
+				simulator.register(nfs);
 
+				for (int j = 0; j < FOOD_SOURCE_SIZE; j++) {
+					FoodElement nfe = new FoodElement(
+							Parcel.builder(foodPosition,
+									MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+							.serviceDuration(SERVICE_DURATION)
+							.neededCapacity(1)//.neededCapacity(FOOD_ELEMENT_VOLUME)
+							.buildDTO(), Math.random() * 2 + 1);
+					simulator.register(nfe);
+					//nfs.putElement(nfe);
+				}
+				
+			}
+			
 		    simulator.addTickListener(new TickListener() {
 		      @Override
 		      public void tick(TimeLapse time) {
-		        if (time.getStartTime() > endTime) {
-		          simulator.stop();
-		        } else if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB) {
-		          simulator.register(new Customer(
-		            Parcel
-		              .builder(roadModel.getRandomPosition(rng),
-		                roadModel.getRandomPosition(rng))
-		              .serviceDuration(SERVICE_DURATION)
-		              .neededCapacity(1) // This part should be fixed
-		              .buildDTO()));
+					
+					if (time.getStartTime() > endTime) {
+						simulator.stop();
+					} else 
+					{
+
+						if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB && SOURCES.size() < MAX_SOURCES) {
+							Point foodPosition = roadModel.getRandomPosition(rng);
+							FoodSource nfs = new FoodSource(
+									Parcel.builder(foodPosition,
+											MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+									.serviceDuration(SERVICE_DURATION)
+									.neededCapacity(1)//.neededCapacity(Integer.MAX_VALUE)
+									.buildDTO());
+							simulator.register(nfs);
+
+							for (int i = 0; i < FOOD_SOURCE_SIZE; i++) {
+								FoodElement nfe = new FoodElement(
+										Parcel.builder(foodPosition,
+												MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+										.serviceDuration(SERVICE_DURATION)
+										.neededCapacity(1)//.neededCapacity(FOOD_ELEMENT_VOLUME)
+										.buildDTO(), Math.random() * 2 + 1);
+								simulator.register(nfe);
+								nfs.putElement(nfe);
+
+							}
+							register(nfs);
+						}
 		        }
 		      }
 
@@ -447,7 +494,7 @@ public final class Environment {
 						.withImageAssociation(
 								Ant.class, "/small_ant.png") //replace
 						.withImageAssociation(
-								Taxi.class, "/small_ant.png")
+								CentralizedAnt.class, "/small_ant.png")
 						//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
 						.withImageAssociation(
 								FoodSource.class, "/tiny_wheat.png") //"/src/main/resources/wheat-stalk.jpg")
@@ -603,23 +650,5 @@ public final class Environment {
 	public static void dropFood(FoodElement el, Point position) {
 		DROPPED_FOOD_ELEMENTS.put(el,position);
 	}
-
-	/**
-	 * A customer with very permissive time windows.
-	 */
-	static class Customer extends Parcel {
-		Customer(ParcelDTO dto) {
-			super(dto);
-		}
-
-		@Override
-		public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {}
-	}
-
-
-
-	// currently has no function
-
-
 
 }
