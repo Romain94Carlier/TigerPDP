@@ -46,6 +46,11 @@ import com.github.rinde.rinsim.core.model.road.RoadUser;
 import com.github.rinde.rinsim.core.model.time.TickListener;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.event.Listener;
+
+//import com.github.rinde.rinsim.examples.core.taxi.Taxi;
+//import com.github.rinde.rinsim.examples.core.taxi.TaxiExample.Customer;
+//import com.github.rinde.rinsim.examples.core.taxi.TaxiExample.TaxiBase;
+
 //import com.github.rinde.rinsim.examples.core.taxi.TaxiRenderer;//.TaxiRenderer.Language;
 import com.github.rinde.rinsim.geom.Graph;
 import com.github.rinde.rinsim.geom.MultiAttributeData;
@@ -168,8 +173,8 @@ public final class Environment {
 		final RoadModel roadModel = simulator.getModelProvider().getModel(
 				RoadModel.class);
 		// add depots, taxis and parcels to simulator
-		//registerCentralizedSimulator(endTime, simulator, rng, roadModel);
-		registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
+		registerCentralizedSimulator(endTime, simulator, rng, roadModel);
+		//registerGradientFieldSimulator(endTime, simulator, rng, roadModel);
 		simulator.start();
 
 		return simulator;
@@ -178,47 +183,43 @@ public final class Environment {
 	private static void registerCentralizedSimulator(final long endTime,
 			final Simulator simulator, final RandomGenerator rng,
 			final RoadModel roadModel) {
-		TaxiBase tb = new TaxiBase(roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
-		TaxiBase.set(tb);
-		for (int i = 0; i < NUM_COLONIES; i++) {
-			simulator.register(TaxiBase.get());
-		}
-		for (int i = 0; i < NUM_ANTS; i++) {
-			Ant nt = new Ant(roadModel.getRandomPosition(rng), ANT_CAPACITY, BOLD_AGENTS, DYNAMIC_AGENTS, MAX_ENERGY);
-			simulator.register(nt);
-			TaxiBase.register(nt);
-		}
-		for (int i = 0; i < FOOD_SOURCE_SIZE; i++) {
-			FoodSource nc = new FoodSource(
-					Parcel.builder(roadModel.getRandomPosition(rng),
-							roadModel.getRandomPosition(rng))
-					.serviceDuration(SERVICE_DURATION)
-					.neededCapacity(1 + rng.nextInt(FOOD_ELEMENT_VOLUME))
-					.buildDTO());
-			simulator.register(nc);
-			TaxiBase.register(nc);
-		}
+		
+		 for (int i = 0; i < NUM_COLONIES; i++) {
+		      simulator.register(new TaxiBase(roadModel.getRandomPosition(rng),
+		        DEPOT_CAPACITY));
+		    }
+		    for (int i = 0; i < NUM_ANTS; i++) {
+		      simulator.register(new Taxi(roadModel.getRandomPosition(rng),
+		        ANT_CAPACITY));
+		    }
+		    for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
+		      simulator.register(new Customer(
+		        Parcel.builder(roadModel.getRandomPosition(rng),
+		          roadModel.getRandomPosition(rng))
+		          .serviceDuration(SERVICE_DURATION)
+		          .neededCapacity(1) // This part should be fixed
+		          .buildDTO()));
+		    }
 
-		simulator.addTickListener(new TickListener() {
-			@Override
-			public void tick(TimeLapse time) {
-				if (time.getStartTime() > endTime) {
-					simulator.stop();
-				} else if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB) {
-					FoodSource nc = new FoodSource(
-							Parcel.builder(roadModel.getRandomPosition(rng),
-									roadModel.getRandomPosition(rng))
-							.serviceDuration(SERVICE_DURATION)
-							.neededCapacity(1 + rng.nextInt(FOOD_ELEMENT_VOLUME))
-							.buildDTO());
-					simulator.register(nc);
-					TaxiBase.register(nc);
-				}
-			}
+		    simulator.addTickListener(new TickListener() {
+		      @Override
+		      public void tick(TimeLapse time) {
+		        if (time.getStartTime() > endTime) {
+		          simulator.stop();
+		        } else if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB) {
+		          simulator.register(new Customer(
+		            Parcel
+		              .builder(roadModel.getRandomPosition(rng),
+		                roadModel.getRandomPosition(rng))
+		              .serviceDuration(SERVICE_DURATION)
+		              .neededCapacity(1) // This part should be fixed
+		              .buildDTO()));
+		        }
+		      }
 
-			@Override
-			public void afterTick(TimeLapse timeLapse) {}
-		});
+		      @Override
+		      public void afterTick(TimeLapse timeLapse) {}
+		    });
 	}
 
 	private static void registerGradientFieldSimulator(final long endTime,
@@ -442,12 +443,18 @@ public final class Environment {
 						.withImageAssociation(
 								Colony.class, "/ant_colony.png")
 						.withImageAssociation(
+								TaxiBase.class, "/ant_colony.png")
+						.withImageAssociation(
 								Ant.class, "/small_ant.png") //replace
+						.withImageAssociation(
+								Taxi.class, "/small_ant.png")
 						//Taxi.class, "/src/main/resources/Tiger-PNG-Image.png")
 						.withImageAssociation(
 								FoodSource.class, "/tiny_wheat.png") //"/src/main/resources/wheat-stalk.jpg")
 						.withImageAssociation(
-								DroppedFoodSource.class, "/graphics/flat/person-red-32.png")		//picture food source
+								Customer.class, "/tiny_wheat.png") //"/src/main/resources/wheat-stalk.jpg")
+						.withImageAssociation(
+								DroppedFoodSource.class, "/tiny_wheat.png")		//picture food source
 				).with(PDPModelRenderer.builder())
 				.withTitleAppendix("Ant colony Demo");
 
