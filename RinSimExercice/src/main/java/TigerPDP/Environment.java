@@ -77,20 +77,20 @@ public final class Environment {
 
 	private static FoodElement destroyedFood;
 
-	private static final int MAP_SCALE = 100;
-	private static final boolean CENTRALIZED = true;
+	private static final int MAP_SCALE = 10;
+	private static final boolean CENTRALIZED = false;
 
 
 	private static final int DEPOT_CAPACITY = 100;
 
-	private static final int NUM_ANTS = 20;
+	private static final int NUM_ANTS = 2;
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
 	private static final double MAX_ENERGY = 5*MAP_SCALE;
 
 	private static final int NUM_FOOD_SOURCE = 5;
 	private static final int FOOD_SOURCE_SIZE = 10;
-	private static final int FOOD_ELEMENT_VOLUME = 1;
+	//private static final int FOOD_ELEMENT_VOLUME = 1; We don't longer use this variable
 	private static final long SERVICE_DURATION = 60000;
 	private static final double NEW_FOOD_SOURCE_PROB = .007*10/FOOD_SOURCE_SIZE;
 	private static final int MAX_SOURCES = NUM_ANTS*2; //Maximum amount of food sources at the same time
@@ -119,7 +119,7 @@ public final class Environment {
 	private static ArrayList<GFAnt> ANTS = new ArrayList<GFAnt>();
 	private static ArrayList<CentralizedAnt> CENTRALIZED_ANTS = new ArrayList<CentralizedAnt>();
 	private static ArrayList<FoodSource> SOURCES = new ArrayList<FoodSource>();
-	private static HashMap<FoodElement,Point> DROPPED_FOOD_ELEMENTS = new HashMap<FoodElement,Point>();
+	private static HashMap<FoodElement, List<Point>> DROPPED_FOOD_ELEMENTS = new HashMap<FoodElement,List<Point>>();
 	private static HashMap<Vehicle,Point> GRADIENT_VECTORS = new HashMap<Vehicle,Point>();
 	private static int SUCCESSFUL_DELIVERIES = 0;
 	private static int EXPIRED_SOURCES = 0;
@@ -207,15 +207,6 @@ public final class Environment {
 			simulator.register(nca);
 			register(nca);
 		}
-		/*
-		    for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
-		      simulator.register(new Customer(
-		        Parcel.builder(roadModel.getRandomPosition(rng),
-		          roadModel.getRandomPosition(rng))
-		          .serviceDuration(SERVICE_DURATION)
-		          .neededCapacity(1) // This part should be fixed
-		          .buildDTO()));
-		    }*/
 
 		for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
 			generateFoodSource(simulator, rng, roadModel);
@@ -352,7 +343,7 @@ public final class Environment {
 		//simulator.register(env);
 
 		for (int i = 0; i < NUM_COLONIES; i++) {
-			Colony colony = new Colony (MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5), DEPOT_CAPACITY);
+			Colony colony = new Colony (roadModel.getRandomPosition(rng), DEPOT_CAPACITY);
 			simulator.register(colony); 
 			//Environment.register(colony);
 			register(colony);
@@ -429,11 +420,12 @@ public final class Environment {
 					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
 						//						simulator.unregister(foodElement);
 
-						Point usedPosition = DROPPED_FOOD_ELEMENTS.get(foodElement);
+						Point usedPosition = DROPPED_FOOD_ELEMENTS.get(foodElement).get(0);
+						Point deliveryPosition = DROPPED_FOOD_ELEMENTS.get(foodElement).get(1);
 						System.out.println("used position: "+usedPosition);
 						FoodElement nfe = new FoodElement(
 								Parcel.builder(usedPosition,
-										MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+										deliveryPosition)
 								.serviceDuration(SERVICE_DURATION)
 								.neededCapacity(1)
 								.buildDTO(), Math.random() * 2 + 1);
@@ -450,7 +442,7 @@ public final class Environment {
 						//foodElement.setLocation(DROPPED_FOOD_ELEMENTS.get(foodElement));
 
 						DroppedFoodSource nfs = new DroppedFoodSource(Parcel.builder(usedPosition,
-								MapUtil.rescale(Point.diff(MAX_POINT, MIN_POINT),0.5))
+								deliveryPosition)
 								.serviceDuration(SERVICE_DURATION)
 								.neededCapacity(1)
 								.buildDTO(), nfe);
@@ -614,14 +606,14 @@ public final class Environment {
 				//							debug.remove(ru);
 				else if(ru instanceof FoodElement && (simulator.getModelProvider().getModel(DefaultPDPModel.class).getParcelState((FoodElement) ru)).equals(ParcelState.DELIVERED))
 					debug.remove(ru);
-				else System.out.print("("+Math.round(((FoodSource) ru).getPickupLocation().x)+","+Math.round(((FoodSource) ru).getPickupLocation().y)+") ");
+				//else System.out.print("("+Math.round(((FoodSource) ru).getPickupLocation().x)+","+Math.round(((FoodSource) ru).getPickupLocation().y)+") ");
 			}
 		}
 	}
 
 	public static void register(GFAnt ant) {
 		ANTS.add(ant);
-		//GRADIENT_VECTORS.put(ant, ant.getStartPosition()); //Not sure about this! :S
+		GRADIENT_VECTORS.put(ant, ant.getStartPosition());
 	}
 
 	public static void register(CentralizedAnt ant) {
@@ -709,8 +701,8 @@ public final class Environment {
 		return closest;
 	}
 
-	public static void dropFood(FoodElement el, Point position) {
-		DROPPED_FOOD_ELEMENTS.put(el,position);
+	public static void dropFood(FoodElement el, List<Point> positions) {
+		DROPPED_FOOD_ELEMENTS.put(el,positions);
 	}
 
 	public static void remove(FoodSource parcel) {
@@ -746,8 +738,21 @@ public final class Environment {
 	public static boolean mayRest(Ant ant) {
 		//later: check ant position to get the right colony.
 		//for now assume ant is on the unique colony
-		
 		return getNearestColony(ant).occupyForResting(ant);
+	}
+
+	public static Colony getColonyFromVisual(GFAnt gfAnt) {
+		// develop method for seeing nearby colony
+		double shortestDist = 99999999; //not sure what it is for
+		Colony nearestColony = null;
+		for(Colony colony : COLONIES) {
+			double dist = Point.distance(colony.getPosition(), gfAnt.getPosition().get());
+			if(dist < GFAnt.VISUAL_RANGE && dist < shortestDist) {
+				shortestDist = dist;
+				nearestColony = colony;
+			}
+		}
+		return nearestColony;
 	}
 
 }

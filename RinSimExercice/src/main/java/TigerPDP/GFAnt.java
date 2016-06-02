@@ -16,6 +16,9 @@ package TigerPDP;
  */
 /*something*/
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
 import com.github.rinde.rinsim.core.model.comm.CommDeviceBuilder;
 import com.github.rinde.rinsim.core.model.comm.CommUser;
@@ -41,9 +44,9 @@ class GFAnt extends Ant implements CommUser {
 
 	public static final double VISUAL_RANGE = 2.5d;	//debug
 	private Optional<Parcel> curr;
-	
+	private Colony colony;
 	private Strategy energyStrategy;
-
+	
 	Optional<CommDevice> device;
 	Optional<Point> destination;
 
@@ -52,9 +55,7 @@ class GFAnt extends Ant implements CommUser {
 		curr = Optional.absent();
 		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
 		energyStrategy = new Strategy(bold, dynamic);
-		
-		
-		
+		colony = null;
 	}
 
 	@Override
@@ -76,12 +77,25 @@ class GFAnt extends Ant implements CommUser {
 		
 		if (curr.isPresent())
 			inCargo = pm.containerContains(this, curr.get());
-			
+		
 		if(wantToRest(inCargo)) {
-//			if(pm.containerContains(this, curr.get())) {
-//				pm.drop(this, curr.get(), time);
-//			}
 			
+			colony = Environment.getColonyFromVisual(this);
+			
+			if(colony == null){//find a colony!
+				Point gradientVector = MapUtil.rescale(Environment.getGradientField(this), 1);
+				Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
+				destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
+				Point pos1 = getPosition().get();
+				rm.moveTo(this, destination.get(), time);
+				Point pos2 = getPosition().get();
+				double distance = Point.distance(pos1,pos2);
+				decreaseEnergy(distance);
+			}else{// we found a colony, keep going until reach it
+				moveToColony(time, rm, pm);
+			}		
+			
+			/*
 			Point pos1 = getPosition().get();
 			MoveProgress mp = rm.moveTo(this, Environment.getNearestColony(this), time);
 			Point pos2 = getPosition().get();
@@ -96,7 +110,7 @@ class GFAnt extends Ant implements CommUser {
 				rest(remaining);
 				curr = Optional.absent();
 			}
-			
+			 */
 		}
 		else {	//hunt
 			if (!curr.isPresent()) {
@@ -143,7 +157,11 @@ class GFAnt extends Ant implements CommUser {
 						Parcel it = curr.get();
 						///Probably this is not the best way to do it. It should happen in the environment
 						pm.drop(this, it, time); 
-						Environment.dropFood((FoodElement) it, this.getPosition().get());
+						List<Point> positions = new ArrayList<Point>();
+						positions.add(0, this.getPosition().get());
+						positions.add(1, it.getDeliveryLocation());
+						
+						Environment.dropFood((FoodElement) it, positions);
 						System.out.println("Drop food element");
 						dropping = true;
 					}
@@ -181,11 +199,32 @@ class GFAnt extends Ant implements CommUser {
 			}
 		}
 	}
+	
+	private void moveToColony(TimeLapse time, final RoadModel rm, final PDPModel pm) {
+		Point pos1 = getPosition().get();
+		rm.moveTo(this, colony.getPosition(), time);
+		Point pos2 = getPosition().get();
+		double distance = Point.distance(pos1,pos2);
+		decreaseEnergy(distance);
+		MoveProgress mp = rm.moveTo(this, colony.getPosition(), time);
+		long remaining = time.getTime() - mp.time().getValue();
+		
+		if (rm.getPosition(this).equals(colony.getPosition())) {
+			//rest!
+			if(curr.isPresent() && pm.containerContains(this, curr.get())){
+				pm.deliver(this, curr.get(), time);
+				Environment.notifyDelivery();
+			}
+			rest(remaining);
+			curr = Optional.absent();
+		}
+	}
 
 	private boolean wantToRest(boolean inCargo) {
 		if(isResting())
 			return true;
 		boolean result = false;
+		colony = null; //not sure about this!
 		if(energyStrategy.bold == false && energyStrategy.dynamic == false){
 			result = getEnergy() < getMaxEnergy()/10;
 		}
@@ -196,7 +235,7 @@ class GFAnt extends Ant implements CommUser {
 			if(curr.isPresent()){
 				if(!inCargo){
 					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
-							+ Point.distance(Environment.getNearestColony(this), curr.get().getPickupLocation()) * 2; //*********************************** 
+							+ Point.distance(curr.get().getDeliveryLocation(), curr.get().getPickupLocation()) * 2;  
 					if(distance > (getEnergy() + 1)){
 						result = true;
 					}
@@ -206,16 +245,26 @@ class GFAnt extends Ant implements CommUser {
 					}
 				}
 			}else {			//roaming the gradient field without parcel
+				/****************************************************************/
+				//In GF we cannot just calculate the nearest colony, the ant should be able to 'see' the colony an go back to it
+				// so ant should just wander around until it sees a colony. Without picking up a food element?
+				if ( getEnergy() < 5){ //We need a good number here /******************/ maybe this part also should depend on
+					// sizes of the map
+					result = true;
+				}
+				/*
 				if (Point.distance(this.getPosition().get(), Environment.getNearestColony(this)) > getEnergy() + 0.2){ //We need a good number here
 					result = true;
 				}
+				*/
 			}
 		}
+		
 		if(energyStrategy.bold == true && energyStrategy.dynamic == true){
 			if(curr.isPresent()){
 				if(!inCargo){
 					double distance = Point.distance(this.getPosition().get(), curr.get().getPickupLocation())
-							+ Point.distance(Environment.getNearestColony(this), curr.get().getPickupLocation()) * 2;
+							+ Point.distance(curr.get().getDeliveryLocation(), curr.get().getPickupLocation()) * 2;
 					if(distance > (getEnergy() + 2)){
 						result = true;
 						//System.out.println("true because unlikely ant will be able to carry the food it saw back to colony");
@@ -227,10 +276,19 @@ class GFAnt extends Ant implements CommUser {
 					}
 				}
 			}else {			//roaming the gradient field without parcel
+				/****************************************************************/
+				//In GF we cannot just calculate the nearest colony, the ant should be able to 'see' the colony an go back to it
+				// so ant should just wander around until it sees a colony. Without picking up a food element?
+				if ( getEnergy() < 5){ //We need a good number here /******************/ maybe this part also should depend on
+					// sizes of the map
+					result = true;
+				}
+				/*
 				if (Point.distance(this.getPosition().get(), Environment.getNearestColony(this)) > getEnergy() + 0.2){ //We need a good number here
 					result = true;
 //					System.out.println("true because ant can barely reach the colony");
 				}
+				*/
 			}
 		}
 		//System.out.println("want to rest: "+result);
