@@ -10,6 +10,7 @@ public class Colony extends Depot {
 	
 	//private int succesfulDeliveries;
 	private Point position;
+	private Ant restingAnt = null;
 
 	Colony(Point position, double capacity) {
 		super(position);
@@ -23,5 +24,20 @@ public class Colony extends Depot {
 
 	public Point getPosition() {
 		return position;
+	}
+	
+	public boolean occupyForResting(Ant ant) {
+		if(restingAnt != null && !ant.equals(restingAnt))
+			return false;
+		restingAnt = ant;
+		
+		return true;
+	}
+
+	public void finishedResting(Ant ant) {
+		if(ant.equals(restingAnt))
+			restingAnt = null;
+		else throw new IllegalArgumentException();
+		//System.out.println("ant "+ant.toString()+" is done resting");
 	}
 }

@@ -26,7 +26,7 @@ import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 
-import TigerPDP.Ant.Strategy;
+import TigerPDP.GFAnt.Strategy;
 
 /**
  * Implementation of a very simple taxi agent. It moves to the closest customer,
@@ -34,26 +34,14 @@ import TigerPDP.Ant.Strategy;
  *
  * @author Rinde van Lon
  */
-class CentralizedAnt extends Vehicle {
-	private final double RESTING_RATE;	//tune
-	private static final double SPEED = 1000d;
-	private final double maxEnergy;	//tune
-	private Optional<Parcel> curr;
-	private double energy;
-	private boolean resting;
+class CentralizedAnt extends Ant {
+	
 	private boolean grounded = false;
 
-	CentralizedAnt(Point startPosition, int capacity, double maxEnergy) {
-		super(VehicleDTO.builder()
-				.capacity(capacity)
-				.startPosition(startPosition)
-				.speed(SPEED)
-				.build());
+	public CentralizedAnt(Point startPosition, int capacity, double maxEnergy) {
+		super(startPosition, capacity, maxEnergy);
 		curr = Optional.absent();
 		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
-		energy = maxEnergy;
-		this.maxEnergy = maxEnergy;
-		RESTING_RATE = 0.00000003*maxEnergy/50;
 	}
 
 	@Override
@@ -75,12 +63,12 @@ class CentralizedAnt extends Vehicle {
 //			}
 			
 			Point pos1 = getPosition().get();
-			MoveProgress mp = rm.moveTo(this, Environment.getColonyPosition(), time);
+			MoveProgress mp = rm.moveTo(this, Environment.getNearestColony(this).getPosition(), time);
 			Point pos2 = getPosition().get();
 			double distance = Point.distance(pos1,pos2);
-			energy -= distance;
+			decreaseEnergy(distance);
 			long remaining = time.getTime() - mp.time().getValue();
-			if (rm.getPosition(this).equals(Environment.getColonyPosition())) {
+			if (rm.getPosition(this).equals(Environment.getNearestColony(this).getPosition())) {
 				if(curr.isPresent() && pm.containerContains(this, curr.get())){
 //					pm.deliver(this, curr.get(), time);
 //					Environment.notifyDelivery();
@@ -113,11 +101,11 @@ class CentralizedAnt extends Vehicle {
 				rm.moveTo(this, curr.get().getDeliveryLocation(), time);
 				Point pos2 = getPosition().get();
 				double distance = Point.distance(pos1,pos2);
-				energy -= distance*2;
+				decreaseEnergy(distance*2);
 				if (curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 					// deliver when we arrive
-					if(energy <0)
-						throw new IllegalStateException("<0 energy");
+					if(getEnergy() <0)
+						throw new IllegalStateException("<0 energy, carrying "+curr.get()+" energy: "+getEnergy()+" position: "+getPosition());
 					pm.deliver(this, curr.get(), time);
 					Environment.notifyDelivery();
 				}
@@ -127,13 +115,13 @@ class CentralizedAnt extends Vehicle {
 				rm.moveTo(this, curr.get(), time);
 				Point pos2 = getPosition().get();
 				double distance = Point.distance(pos1,pos2);
-				energy -= distance;
-				if (rm.equalPosition(this, curr.get())) {
+				decreaseEnergy(distance);
+				if (rm.equalPosition(this, curr.get()) && Environment.canDeliver(this, (FoodSource) curr.get())) {
 					// pickup food element
 					curr = Optional.fromNullable((Parcel) Environment.pickup((FoodSource) curr.get()));	// ugly
 					//if(curr.isPresent())
 					try {
-						energy -= ((FoodElement) curr.get()).getFixedCost();
+						decreaseEnergy(((FoodElement) curr.get()).getFixedCost());
 						pm.pickup(this, curr.get(), time);
 					} catch (ClassCastException cce) {
 						curr = Optional.absent();
@@ -149,43 +137,18 @@ class CentralizedAnt extends Vehicle {
 		}
 	}
 
-	public Optional<Point> getPosition() {
-		return Optional.of(getRoadModel().getPosition(this));
-	}
-	
 	private boolean wantToRest(boolean inCargo) {
-		if(resting)
+		if(isResting())
 			return true;
 		return grounded;
 	}
 
-	private void rest(long time) {
-		resting = true;
-		double rate;
-		if(energy < 0)
-			rate = RESTING_RATE / 5;
-		else rate = RESTING_RATE;
-		energy += time * rate;	// tune
-		if(energy >= maxEnergy) {
-			energy = maxEnergy;
-			resting = false;
-			grounded = false;
-		}
-	}
-	
-	public boolean isResting() {
-		return resting;
+	protected void rest(long time) {
+		super.rest(time);
+		grounded = false;
 	}
 	
 	public void groundAnt() {
 		grounded = true;
-	}
-	
-	public boolean isTaken() {		//TODO: private? all interactions through communication eventually
-		return ! (this.curr.equals(Optional.<Parcel>absent()));
-	}
-	
-	public double getEnergy() {
-		return this.energy;
 	}
 }

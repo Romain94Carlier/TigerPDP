@@ -25,7 +25,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 
 	private static TaxiBase TAXIBASE;
 	Optional<CommDevice> device;
-	private ArrayList<Ant> taxis = new ArrayList<Ant>();
+	private ArrayList<GFAnt> taxis = new ArrayList<GFAnt>();
 	private ArrayList<Parcel> customers = new ArrayList<Parcel>();
 	private HashMap<Vehicle,Parcel> assignments;
 
@@ -64,12 +64,12 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 		for(Parcel c : customers)
 			cPositions.put(c,c.getPickupLocation());
 		HashMap<Vehicle,Point> vPositions = new HashMap<Vehicle,Point>();
-		for(Ant v : taxis)
+		for(GFAnt v : taxis)
 			vPositions.put(v, v.getPosition().get());
 
 		//2. extract closest pair and find next
-		ArrayList<Ant> remainingTaxis = new ArrayList<Ant>(taxis);
-		for(Ant taxi : taxis){
+		ArrayList<GFAnt> remainingTaxis = new ArrayList<GFAnt>(taxis);
+		for(GFAnt taxi : taxis){
 			if(taxi.isTaken())
 				remainingTaxis.remove(taxi);
 		}
@@ -80,7 +80,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 			for(Parcel c : remainingCustomers) {
 				Point pos = cPositions.get(c);
 				Map<Pair,Double> distances = new HashMap<Pair,Double>();
-				for(Ant v : remainingTaxis) {
+				for(GFAnt v : remainingTaxis) {
 					Point taxiPos = vPositions.get(v);
 					distances.put(new Pair(v, c), Point.distance(taxiPos, pos));
 				}
@@ -118,7 +118,7 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 
 	private void printAssignments(HashMap<Vehicle,Parcel> assignments) {
 		for(Vehicle v : assignments.keySet()){
-			Point taxipos = ((Ant) v).getPosition().get();
+			Point taxipos = ((GFAnt) v).getPosition().get();
 			Point customerpos = assignments.get(v).getPickupLocation();
 			System.out.println("taxi pos: "+taxipos+" customer pos : "+customerpos+" distance :"+Point.distance(taxipos, customerpos));
 		}
@@ -141,11 +141,11 @@ public class TaxiBase extends Depot implements CommUser, TickListener {
 	public void afterTick(TimeLapse timeLapse) {
 	}
 
-	public static void register(Ant taxi) {
+	public static void register(GFAnt taxi) {
 		get().taxis.add(taxi);
 	}
 
-	public static List<Ant> getTaxis() {
+	public static List<GFAnt> getTaxis() {
 		return get().taxis;
 	}
 
