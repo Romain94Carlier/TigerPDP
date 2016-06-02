@@ -77,7 +77,7 @@ public final class Environment {
 
 	private static FoodElement destroyedFood;
 
-	private static final int MAP_SCALE = 100;
+	private static final int MAP_SCALE = 10;
 	private static final boolean CENTRALIZED = true;
 
 	private static final int NUM_COLONIES = 1;
@@ -328,7 +328,7 @@ public final class Environment {
 						for(Map.Entry<Pair, Double> entry : shortestFound.entrySet()) {
 							if(absoluteShortest == null) {
 								absoluteShortest = entry.getKey();
-								System.out.println("found distance: "+ entry.getValue());
+								//System.out.println("found distance: "+ entry.getValue());
 							}
 						}
 						//we found and now use the absolute minimal distance pair found
@@ -650,7 +650,7 @@ public final class Environment {
 		Point foodPos = c.getPosition();
 		double dist1 = Point.distance(v.getPosition().get(), foodPos);
 		double dist2 = Point.distance(COLONY.getPosition(), foodPos);
-		return (energy >= dist1 + 2* dist2);
+		return (energy >= dist1 + 2* dist2 + c.getElementCost());
 	}
 
 	public static List<Ant> getAnts() {
@@ -778,7 +778,7 @@ public final class Environment {
 		for(Vehicle v : assignments.keySet()){
 			Point taxipos = ((CentralizedAnt) v).getPosition().get();
 			Point customerpos = assignments.get(v).getPickupLocation();
-			System.out.println("taxi pos: "+taxipos+" customer pos : "+customerpos+" distance :"+Point.distance(taxipos, customerpos));
+			//System.out.println("taxi pos: "+taxipos+" customer pos : "+customerpos+" distance :"+Point.distance(taxipos, customerpos));
 		}
 	}
 

@@ -87,5 +87,9 @@ public class FoodSource extends Parcel {
 	public Point getPosition() {
 		return getPickupLocation();
 	}
+	
+	public double getElementCost(){
+		return elements.get(0).getFixedCost();
+	}
 
 }
