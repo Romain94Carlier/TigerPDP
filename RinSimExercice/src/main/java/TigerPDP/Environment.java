@@ -79,9 +79,9 @@ public final class Environment {
 	public static final int MAP_SCALE = 100;
 	public static final boolean CENTRALIZED = false;
 	private static final boolean TESTING = true;
-	static final boolean BOLD_AGENTS = false;		//try out different strategies
+	static final boolean BOLD_AGENTS = true;		//try out different strategies
 	static final boolean DYNAMIC_AGENTS = true;
-	private static final int NUM_ANTS = 200;
+	private static final int NUM_ANTS = 100;
 
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
@@ -337,7 +337,8 @@ public final class Environment {
 				} else 
 				{
 
-					if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB && SOURCES.size() < MAX_SOURCES) {
+					//if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB && SOURCES.size() < MAX_SOURCES) {
+					if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB*(MAX_SOURCES-SOURCES.size())/MAX_SOURCES){
 						generateFoodSource(simulator, rng, roadModel);
 					}
 
