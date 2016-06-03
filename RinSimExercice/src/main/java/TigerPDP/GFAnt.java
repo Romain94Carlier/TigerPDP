@@ -102,9 +102,25 @@ class GFAnt extends Ant implements CommUser {
 				Point pos2 = getPosition().get();
 				double distance = Point.distance(pos1,pos2);
 				decreaseEnergy(distance);
+				
+				if(getEnergy() <= 0 && inCargo){
+					//curr = Optional.absent();
+					Parcel it = curr.get();
+					///Probably this is not the best way to do it. It should happen in the environment
+					pm.drop(this, it, time); 
+					List<Point> positions = new ArrayList<Point>();
+					positions.add(0, this.getPosition().get());
+					positions.add(1, it.getDeliveryLocation());
+					
+					Environment.dropFood((FoodElement) it, positions);
+					System.out.println("Drop food element");
+					//dropping = true;
+				}
+				
 				if (rm.getPosition(this).equals(colony.getPosition())) {
 					if(curr.isPresent() && pm.containerContains(this, curr.get())){
 						pm.deliver(this, curr.get(), time);
+						
 						Environment.notifyDelivery();
 					}
 					rest(time.getTimeLeft());

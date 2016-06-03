@@ -78,7 +78,7 @@ public final class Environment {
 	// Independent variables
 	public static final int MAP_SCALE = 10;
 	public static final boolean CENTRALIZED = false;
-	private static final boolean TESTING = false;
+	private static final boolean TESTING = true;
 	static final boolean BOLD_AGENTS = true;		//try out different strategies
 	static final boolean DYNAMIC_AGENTS = true;
 	private static final int NUM_ANTS = 20;
