@@ -77,13 +77,13 @@ public final class Environment {
 
 	private static FoodElement destroyedFood;
 
-	private static final int MAP_SCALE = 10;
+	private static final int MAP_SCALE = 100;
 	private static final boolean CENTRALIZED = false;
 
 
 	private static final int DEPOT_CAPACITY = 100;
 
-	private static final int NUM_ANTS = 2;
+	private static final int NUM_ANTS = 20;
 	private static final int COLONY_ATTRACTION = MAP_SCALE;
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
@@ -617,17 +617,19 @@ public final class Environment {
 			System.out.println("per simulation minute: "+antCount/(simulator.getCurrentTime()/3600000));
 			Map<RoadUser, Point> debug = roadModel.getObjectsAndPositions();
 			for(RoadUser ru : new HashSet<RoadUser>(debug.keySet())){
-				if(ru instanceof GFAnt)
+				if(ru instanceof Ant)
 					debug.remove(ru);
+				/*
 				if(ru instanceof CentralizedAnt)
 					debug.remove(ru);
+					*/
 				else if(ru instanceof Colony)
 					debug.remove(ru);
 				//						else if(ru instanceof FoodSource && !(ru instanceof FoodElement))
 				//							debug.remove(ru);
-				else if(ru instanceof FoodElement && (simulator.getModelProvider().getModel(DefaultPDPModel.class).getParcelState((FoodElement) ru)).equals(ParcelState.DELIVERED))
-					debug.remove(ru);
-				//else System.out.print("("+Math.round(((FoodSource) ru).getPickupLocation().x)+","+Math.round(((FoodSource) ru).getPickupLocation().y)+") ");
+					else if(ru instanceof FoodElement && (simulator.getModelProvider().getModel(DefaultPDPModel.class).getParcelState((FoodElement) ru)).equals(ParcelState.DELIVERED))
+							debug.remove(ru);
+						else System.out.print("("+Math.round(((FoodSource) ru).getPickupLocation().x)+","+Math.round(((FoodSource) ru).getPickupLocation().y)+") ");
 			}
 		}
 	}
