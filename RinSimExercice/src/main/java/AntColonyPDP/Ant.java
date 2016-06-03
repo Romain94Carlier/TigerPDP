@@ -1,9 +1,8 @@
-package TigerPDP;
+package AntColonyPDP;
 
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
-import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 
@@ -26,12 +25,6 @@ public abstract class Ant extends Vehicle {
 		this.maxEnergy = 5*Environment.MAP_SCALE;
 		energy = maxEnergy;
 		RESTING_RATE = 0.001*maxEnergy/250;	//takes 250 ticks = 10s to rest
-	}
-
-	@Override
-	protected void tickImpl(TimeLapse time) {
-		// TODO Auto-generated method stub
-
 	}
 	
 	public double getEnergy() {

@@ -1,4 +1,4 @@
-package TigerPDP;
+package AntColonyPDP;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -12,7 +12,7 @@ import com.github.rinde.rinsim.geom.Point;
 public class FoodSource extends Parcel {
 
 	/**
-	 * A prey with very permissive time windows.
+	 * A food source .
 	 */
 
 	private ArrayList<FoodElement> elements;
@@ -32,7 +32,6 @@ public class FoodSource extends Parcel {
 		roadModel = pRoadModel;
 	}
 
-	//I think this should be a small percentage, this is why we return a float
 	public float getVariableCost (){
 		return 0;
 	}
@@ -78,7 +77,6 @@ public class FoodSource extends Parcel {
 			}
 			roadModel.unregister(this);
 			pdpModel.unregister(this);
-			//System.out.println("source expired");
 			Environment.notifyExpiring(elements.size());
 		}
 		return expired;
@@ -91,5 +89,4 @@ public class FoodSource extends Parcel {
 	public double getElementCost(){
 		return elements.get(0).getFixedCost();
 	}
-
 }

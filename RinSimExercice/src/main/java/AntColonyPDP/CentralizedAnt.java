@@ -1,4 +1,4 @@
-package TigerPDP;
+package AntColonyPDP;
 /*
  * Copyright (C) 2011-2016 Rinde van Lon, iMinds-DistriNet, KU Leuven
  *
@@ -17,16 +17,10 @@ package TigerPDP;
 
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
-import com.github.rinde.rinsim.core.model.pdp.Vehicle;
-import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
-import com.github.rinde.rinsim.core.model.road.MoveProgress;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
-import com.github.rinde.rinsim.core.model.road.RoadModels;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
-
-import TigerPDP.GFAnt.Strategy;
 
 /**
  * Implementation of a very simple taxi agent. It moves to the closest customer,
@@ -41,7 +35,6 @@ class CentralizedAnt extends Ant {
 	public CentralizedAnt(Point startPosition, int capacity) {
 		super(startPosition, capacity);
 		curr = Optional.absent();
-		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
 	}
 
 	@Override
@@ -58,39 +51,24 @@ class CentralizedAnt extends Ant {
 		if (curr.isPresent())
 			inCargo = pm.containerContains(this, curr.get());
 		if(wantToRest(inCargo)) {
-//			if(pm.containerContains(this, curr.get())) {
-//				pm.drop(this, curr.get(), time);
-//			}
 			Point pos1 = getPosition().get();
-			MoveProgress mp = rm.moveTo(this, Environment.getNearestColony(this).getPosition(), time);
+			rm.moveTo(this, Environment.getNearestColony(this).getPosition(), time);
 			Point pos2 = getPosition().get();
 			double distance = Point.distance(pos1,pos2);
 			decreaseEnergy(distance);
 			if (rm.getPosition(this).equals(Environment.getNearestColony(this).getPosition())) {
 				if(curr.isPresent() && pm.containerContains(this, curr.get())){
-//					pm.deliver(this, curr.get(), time);
-//					Environment.notifyDelivery();
 					throw new IllegalStateException("Centralized ant resting but not empty");
 				}
 				rest(time.getTimeLeft());
-//				curr = Optional.absent();
 			}
 			
 		}
 		if (!curr.isPresent()) {
-			//curr = Optional.fromNullable(RoadModels.findClosestObject(
-			//rm.getPosition(this), rm, Parcel.class));
-			//precheck: (alive) prey within half tick distance
-			//if so: curr becomes the detected prey and we moveTo(curr)
-			// if not: ask a gradient vector and move or moveTo
 			curr = Optional.fromNullable(Environment.getAssignment(this));		//adapt for better refresh			
 		}
 
 		if (curr.isPresent()) {
-			//final boolean inCargo = pm.containerContains(this, curr.get());
-			// sanity check: if it is not in our cargo AND it is also not on the
-			// RoadModel, we cannot go to curr anymore.
-			// TODO: remove from taxibase?
 			if (!inCargo && !rm.containsObject(curr.get())) { //sanity/consistency check
 				curr = Optional.absent();
 			} else if (inCargo) {
@@ -115,9 +93,8 @@ class CentralizedAnt extends Ant {
 				double distance = Point.distance(pos1,pos2);
 				decreaseEnergy(distance);
 				if (rm.equalPosition(this, curr.get()) && Environment.canDeliver(this, (FoodSource) curr.get())) {
-					// pickup food element
+					// pickup food element from food source
 					curr = Optional.fromNullable((Parcel) Environment.pickup((FoodSource) curr.get()));	// ugly
-					//if(curr.isPresent())
 					try {
 						decreaseEnergy(((FoodElement) curr.get()).getFixedCost());
 						pm.pickup(this, curr.get(), time);
@@ -128,7 +105,6 @@ class CentralizedAnt extends Ant {
 						System.out.println("Ant reached a depleted food source!");
 					} catch (IllegalArgumentException ise){
 						ise.printStackTrace();
-						//						throw ise;
 					}
 				}
 			}

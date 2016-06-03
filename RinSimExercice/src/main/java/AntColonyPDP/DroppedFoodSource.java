@@ -1,4 +1,4 @@
-package TigerPDP;
+package AntColonyPDP;
 
 import com.github.rinde.rinsim.core.model.pdp.ParcelDTO;
 import com.github.rinde.rinsim.geom.Point;

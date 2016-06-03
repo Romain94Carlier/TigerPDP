@@ -1,4 +1,4 @@
-package TigerPDP;
+package AntColonyPDP;
 
 import com.github.rinde.rinsim.core.model.pdp.Depot;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
@@ -8,7 +8,6 @@ import com.github.rinde.rinsim.geom.Point;
 
 public class Colony extends Depot {
 	
-	//private int succesfulDeliveries;
 	private Point position;
 	private Ant restingAnt = null;
 
@@ -29,8 +28,6 @@ public class Colony extends Depot {
 	public boolean occupyForResting(Ant ant) {
 		if(isOccupiedByOtherAnt(ant))
 			return false;
-		//if(restingAnt == null)
-			//System.out.println("new ant occupies");
 		restingAnt = ant;
 		return true;
 	}
@@ -43,6 +40,5 @@ public class Colony extends Depot {
 		if(ant.equals(restingAnt))
 			restingAnt = null;
 		else throw new IllegalArgumentException();
-		//System.out.println("ant "+ant.toString()+" is done resting");
 	}
 }
