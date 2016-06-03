@@ -80,7 +80,7 @@ public final class Environment {
 	public static final boolean CENTRALIZED = false;
 	private static final boolean TESTING = true;
 	static final boolean BOLD_AGENTS = true;		//try out different strategies
-	static final boolean DYNAMIC_AGENTS = true;
+	static final boolean DYNAMIC_AGENTS = false;
 	private static final int NUM_ANTS = 100;
 
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
