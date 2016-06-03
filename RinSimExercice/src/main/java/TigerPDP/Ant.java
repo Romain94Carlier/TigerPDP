@@ -17,15 +17,15 @@ public abstract class Ant extends Vehicle {
 	
 	protected Optional<Parcel> curr;
 	
-	protected Ant(Point startPosition, int capacity, double maxEnergy) {
+	protected Ant(Point startPosition, int capacity) {
 		super(VehicleDTO.builder()
 				.capacity(capacity)
 				.startPosition(startPosition)
 				.speed(SPEED)
 				.build());
+		this.maxEnergy = 5*Environment.MAP_SCALE;
 		energy = maxEnergy;
-		this.maxEnergy = maxEnergy;
-		RESTING_RATE = 0.00000003*maxEnergy/50;
+		RESTING_RATE = 0.001*maxEnergy/250;	//takes 250 ticks = 10s to rest
 	}
 
 	@Override
@@ -55,8 +55,12 @@ public abstract class Ant extends Vehicle {
 	}
 	
 	protected void rest(long time) {
-		if(!Environment.mayRest(this))
+		if(!Environment.mayRest(this)) {
+			System.out.println("2 ants trying to rest at "+getPosition().get());
 			return;
+		}
+		if(!resting)
+			System.out.println("starting to rest with energy "+energy);
 		resting = true;
 		double rate;
 		if(energy < 0)

@@ -27,11 +27,16 @@ public class Colony extends Depot {
 	}
 	
 	public boolean occupyForResting(Ant ant) {
-		if(restingAnt != null && !ant.equals(restingAnt))
+		if(isOccupiedByOtherAnt(ant))
 			return false;
+		if(restingAnt == null)
+			System.out.println("new ant occupies");
 		restingAnt = ant;
-		
 		return true;
+	}
+	
+	public boolean isOccupiedByOtherAnt(Ant ant) {
+		return restingAnt != null && !ant.equals(restingAnt);
 	}
 
 	public void finishedResting(Ant ant) {

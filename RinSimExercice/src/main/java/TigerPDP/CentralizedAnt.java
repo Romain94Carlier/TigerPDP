@@ -38,8 +38,8 @@ class CentralizedAnt extends Ant {
 	
 	private boolean grounded = false;
 
-	public CentralizedAnt(Point startPosition, int capacity, double maxEnergy) {
-		super(startPosition, capacity, maxEnergy);
+	public CentralizedAnt(Point startPosition, int capacity) {
+		super(startPosition, capacity);
 		curr = Optional.absent();
 		//this.getClass().getResourceAsStream("/src/main/resources/69_tiger.jpg");
 	}
@@ -61,20 +61,18 @@ class CentralizedAnt extends Ant {
 //			if(pm.containerContains(this, curr.get())) {
 //				pm.drop(this, curr.get(), time);
 //			}
-			
 			Point pos1 = getPosition().get();
 			MoveProgress mp = rm.moveTo(this, Environment.getNearestColony(this).getPosition(), time);
 			Point pos2 = getPosition().get();
 			double distance = Point.distance(pos1,pos2);
 			decreaseEnergy(distance);
-			long remaining = time.getTime() - mp.time().getValue();
 			if (rm.getPosition(this).equals(Environment.getNearestColony(this).getPosition())) {
 				if(curr.isPresent() && pm.containerContains(this, curr.get())){
 //					pm.deliver(this, curr.get(), time);
 //					Environment.notifyDelivery();
 					throw new IllegalStateException("Centralized ant resting but not empty");
 				}
-				rest(remaining);
+				rest(time.getTimeLeft());
 //				curr = Optional.absent();
 			}
 			
