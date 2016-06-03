@@ -9,11 +9,11 @@ import com.google.common.base.Optional;
 
 public abstract class Ant extends Vehicle {
 
-	private final double RESTING_RATE;
-	private double energy;
+	protected final double RESTING_RATE;
+	protected double energy;
 	private static final double SPEED = 1000d;
-	private final double maxEnergy;	//tune
-	private boolean resting;
+	protected final double maxEnergy;	//tune
+	protected boolean resting;
 	
 	protected Optional<Parcel> curr;
 	

@@ -49,6 +49,7 @@ class GFAnt extends Ant implements CommUser {
 	
 	Optional<CommDevice> device;
 	Optional<Point> destination;
+	private boolean wantToRest;
 
 	public GFAnt(Point startPosition, int capacity, boolean bold, boolean dynamic, double maxEnergy) {
 		super(startPosition, capacity, maxEnergy);
@@ -78,11 +79,13 @@ class GFAnt extends Ant implements CommUser {
 		if (curr.isPresent())
 			inCargo = pm.containerContains(this, curr.get());
 		
-		if(wantToRest(inCargo)) {
+		wantToRest = wantToRest(inCargo);
+		
+		if(wantToRest) {
 			
 			colony = Environment.getColonyFromVisual(this);
 			
-			if(colony == null){//find a colony!
+			if(colony == null){//find a colony and forget about the food
 				Point gradientVector = MapUtil.rescale(Environment.getGradientField(this), 1);
 				Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
 				destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
@@ -182,6 +185,9 @@ class GFAnt extends Ant implements CommUser {
 						// pickup food element
 						curr = Optional.fromNullable((Parcel) Environment.pickup((FoodSource) curr.get()));	// ugly
 						//if(curr.isPresent())
+						decreaseEnergy(((FoodElement) curr.get()).getFixedCost());
+						pm.pickup(this, curr.get(), time);
+						/*
 						try {
 							decreaseEnergy(((FoodElement) curr.get()).getFixedCost());
 							pm.pickup(this, curr.get(), time);
@@ -193,7 +199,7 @@ class GFAnt extends Ant implements CommUser {
 						} catch (IllegalArgumentException ise){
 							ise.printStackTrace();
 //							throw ise;
-						}
+						}*/
 					}
 				}
 			}
@@ -220,6 +226,10 @@ class GFAnt extends Ant implements CommUser {
 		}
 	}
 
+	public boolean wantToRest(){
+		return wantToRest;
+	}
+	
 	private boolean wantToRest(boolean inCargo) {
 		if(isResting())
 			return true;
@@ -295,6 +305,22 @@ class GFAnt extends Ant implements CommUser {
 		return result;
 	}
 
+	protected void rest(long time) {
+		if(!Environment.mayRest(this,colony))
+			return;
+		resting = true;
+		double rate;
+		if(energy < 0)
+			rate = RESTING_RATE / 5;
+		else rate = RESTING_RATE;
+		energy += time * rate;	// tune
+		if(energy >= maxEnergy) {
+			energy = maxEnergy;
+			resting = false;
+			colony.finishedResting(this);
+			//Environment.getNearestColony(this).finishedResting(this);
+		}
+	}
 	private Point redirectInBounds(Point point, RoadModel rm) {
 		ImmutableList<Point> bounds = rm.getBounds();
 		if(point.x < bounds.get(0).x)

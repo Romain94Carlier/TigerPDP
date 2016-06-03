@@ -84,6 +84,7 @@ public final class Environment {
 	private static final int DEPOT_CAPACITY = 100;
 
 	private static final int NUM_ANTS = 2;
+	private static final int COLONY_ATTRACTION = MAP_SCALE;
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
 	private static final double MAX_ENERGY = 5*MAP_SCALE;
@@ -384,13 +385,20 @@ public final class Environment {
 					// 2: calculate gradient fields
 					for(GFAnt ant : ANTS) {
 						Point resultingVector = new Point(0, 0);
-						for(GFAnt other : ANTS) {
-							resultingVector = MapUtil.addPoints(resultingVector, repulsiveField(ant, other));
+						if(!ant.wantToRest()){ // if ant doesn't want to rest calculate normal gradient field
+							for(GFAnt other : ANTS) {
+								resultingVector = MapUtil.addPoints(resultingVector, repulsiveField(ant, other));
+							}
+							
+							for(FoodSource food : SOURCES) {
+								resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
+							}
+						}else{//otherwise calculate to reach the colony
+							for(Colony colony : COLONIES) {
+								resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, colony));
+							}
 						}
-
-						for(FoodSource food : SOURCES) {
-							resultingVector = MapUtil.addPoints(resultingVector, attractiveField(ant, food));
-						}
+						
 						resultingVector = MapUtil.normalize(resultingVector);
 						if(((Double) resultingVector.x).isNaN())
 							resultingVector = new Point(0,0);
@@ -574,6 +582,19 @@ public final class Environment {
 		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
 		return result;
 	}
+	
+	private static Point attractiveField(GFAnt ant, Colony food) {
+		Point p1 = ant.getPosition().get();
+		Point p2 = food.getPosition();
+		double distance = Point.distance(p1, p2);
+		//TODO: threshold
+		Point result = Point.diff(p2, p1);	// debug: order
+		result = MapUtil.normalize(result);
+		result = MapUtil.rescale(result, 1/distance/distance);
+		int remainingFoodModifier = COLONY_ATTRACTION; 	// any other modifiers or does this suffice?
+		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
+		return result;
+	}
 
 	public static boolean canDeliver(CentralizedAnt v, FoodSource c) {
 		double energy = v.getEnergy();
@@ -741,6 +762,14 @@ public final class Environment {
 		return getNearestColony(ant).occupyForResting(ant);
 	}
 
+	public static boolean mayRest(Ant ant, Colony colony) {
+		
+		if(colony == null)
+			return false;
+	
+		return colony.occupyForResting(ant);
+	}
+	
 	public static Colony getColonyFromVisual(GFAnt gfAnt) {
 		// develop method for seeing nearby colony
 		double shortestDist = 99999999; //not sure what it is for
