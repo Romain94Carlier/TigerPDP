@@ -78,7 +78,7 @@ public class FoodSource extends Parcel {
 			}
 			roadModel.unregister(this);
 			pdpModel.unregister(this);
-			System.out.println("source expired");
+			//System.out.println("source expired");
 			Environment.notifyExpiring(elements.size());
 		}
 		return expired;

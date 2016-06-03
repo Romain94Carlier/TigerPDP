@@ -76,12 +76,12 @@ import TigerPDP.TaxiBase.Pair;
 public final class Environment {
 
 	// Independent variables
-	public static final int MAP_SCALE = 10;
+	public static final int MAP_SCALE = 100;
 	public static final boolean CENTRALIZED = false;
 	private static final boolean TESTING = true;
-	static final boolean BOLD_AGENTS = true;		//try out different strategies
+	static final boolean BOLD_AGENTS = false;		//try out different strategies
 	static final boolean DYNAMIC_AGENTS = true;
-	private static final int NUM_ANTS = 20;
+	private static final int NUM_ANTS = 200;
 
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
@@ -379,7 +379,7 @@ public final class Environment {
 
 					for(FoodElement fe : new ArrayList<>(destroyedFoods)) {
 						if(roadModel.containsObject(fe)) {
-							System.out.println("contained destroyed food");
+							//System.out.println("contained destroyed food");
 							roadModel.removeObject(fe);
 							destroyedFoods.remove(fe);
 						}
@@ -399,12 +399,13 @@ public final class Environment {
 					//					}
 					//					if(roadModel.getObjects().size() == 8)
 					//						System.out.println("8 road users");
-					for(FoodElement foodElement : DROPPED_FOOD_ELEMENTS.keySet()) {
+					
+					for(FoodElement foodElement : new HashSet<FoodElement>(DROPPED_FOOD_ELEMENTS.keySet())) {
 						//						simulator.unregister(foodElement);
 
 						Point usedPosition = DROPPED_FOOD_ELEMENTS.get(foodElement).get(0);
 						Point deliveryPosition = DROPPED_FOOD_ELEMENTS.get(foodElement).get(1);
-						System.out.println("used position: "+usedPosition);
+						//System.out.println("used position: "+usedPosition);
 						FoodElement nfe = new FoodElement(
 								Parcel.builder(usedPosition,
 										deliveryPosition)
@@ -412,7 +413,7 @@ public final class Environment {
 								.neededCapacity(1)
 								.buildDTO(), Math.random() * 2 + 1);
 						simulator.register(nfe);
-						System.out.println("registered nfe "+nfe.toString());
+						//System.out.println("registered nfe "+nfe.toString());
 						//						register(nfe);
 						destroyedFoods.add(foodElement);
 						//foodElement.destroy();
@@ -431,13 +432,13 @@ public final class Environment {
 
 						register(nfs);
 						simulator.register(nfs);
-						System.out.println("registered nfs "+nfs.toString());
+						//System.out.println("registered nfs "+nfs.toString());
 						//simulator.unregister(foodElement);
 						//						boolean modified = simulator.getModelProvider().getModel(DefaultPDPModel.class).unregister(foodElement);
 						//						
 						//						modified = modified && roadModel.unregister(foodElement);
 						ParcelState state = simulator.getModelProvider().getModel(DefaultPDPModel.class).getParcelState(foodElement);
-						System.out.println("state: "+state) ;
+						//System.out.println("state: "+state) ;
 						//						if(!modified)	 
 						//							System.out.println("inconsistent dpmodel");
 						//						else
@@ -576,8 +577,8 @@ public final class Environment {
 		result = MapUtil.normalize(result);
 		result = MapUtil.rescale(result, 1/distance/distance);
 		int remainingFoodModifier = food.getNumberElements(); 	// any other modifiers or does this suffice?
-		if(remainingFoodModifier == 0)
-			System.out.println("depleted food source");
+		//if(remainingFoodModifier == 0)
+			//System.out.println("depleted food source");
 		result = MapUtil.rescale(result, Math.log(remainingFoodModifier+1)+1);
 		return result;
 	}
@@ -606,7 +607,7 @@ public final class Environment {
 	}
 
 	private static void performanceAssessment(final Simulator simulator, final RoadModel roadModel) {
-		if((simulator.getCurrentTime() % 3600000) == 0 && simulator.getCurrentTime()>0) {
+		if((simulator.getCurrentTime() % (3600000*20)) == 0 && simulator.getCurrentTime()>0) {
 			System.out.println("expired food sources: "+getExpiredSourceCount()+", elements: "+getExpiredElementCount());
 			System.out.println("succesfulDeliveries: "+ getDeliveryCount());
 			double antCount = ((double) getDeliveryCount())/((double) NUM_ANTS);
@@ -675,8 +676,8 @@ public final class Environment {
 			if(dist < GFAnt.VISUAL_RANGE && dist < shortestDist) {
 				shortestDist = dist;
 				nearestFood = foodSource;
-				if(dist == 0.0)
-					System.out.println("on food element");
+				//if(dist == 0.0)
+					//System.out.println("on food element");
 			}
 		}
 		return nearestFood;

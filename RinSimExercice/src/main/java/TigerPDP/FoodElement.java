@@ -23,14 +23,14 @@ public class FoodElement extends FoodSource {
 //	}
 	
 	public FoodElement pickup() {
-		System.out.println("picking up a dropped element!");
+		//System.out.println("picking up a dropped element!");
 		return executePickup();
 	}
 
 	public void destroy() {
 		roadModel.unregister(this);
 		pdpModel.unregister(this);
-		System.out.println("food element destroyed, with position: "+"("+Math.round(this.getPickupLocation().x)+","+Math.round(this.getPickupLocation().y)+") "+this.toString());
+		//System.out.println("food element destroyed, with position: "+"("+Math.round(this.getPickupLocation().x)+","+Math.round(this.getPickupLocation().y)+") "+this.toString());
 		try {
 			this.finalize();
 		} catch (Throwable e) {

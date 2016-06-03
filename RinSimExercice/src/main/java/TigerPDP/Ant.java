@@ -56,11 +56,11 @@ public abstract class Ant extends Vehicle {
 	
 	protected void rest(long time) {
 		if(!Environment.mayRest(this)) {
-			System.out.println("2 ants trying to rest at "+getPosition().get());
+			//System.out.println("2 ants trying to rest at "+getPosition().get());
 			return;
 		}
-		if(!resting)
-			System.out.println("starting to rest with energy "+energy);
+		//if(!resting)
+			//System.out.println("starting to rest with energy "+energy);
 		resting = true;
 		double rate;
 		if(energy < 0)

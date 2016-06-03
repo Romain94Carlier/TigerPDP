@@ -26,6 +26,7 @@ import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
+import com.github.rinde.rinsim.core.model.pdp.PDPModel.VehicleState;
 import com.github.rinde.rinsim.core.model.road.MoveProgress;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModels;
@@ -88,8 +89,8 @@ class GFAnt extends Ant implements CommUser {
 			if(colony == null){//find a colony and forget about the food
 				Point gradientVector = MapUtil.rescale(Environment.getGradientField(this), 1);
 				Point destinationPoint = MapUtil.addPoints(gradientVector, getPosition().get());
-				if(destinationPoint.x == 0)
-					System.out.println("0 resting GF");
+				//if(destinationPoint.x == 0)
+					//System.out.println("0 resting GF");
 				destination = Optional.fromNullable(redirectInBounds(destinationPoint, rm));
 				Point pos1 = getPosition().get();
 				rm.moveTo(this, destination.get(), time);
@@ -113,18 +114,19 @@ class GFAnt extends Ant implements CommUser {
 					positions.add(1, it.getDeliveryLocation());
 					
 					Environment.dropFood((FoodElement) it, positions);
-					System.out.println("Drop food element");
+					//System.out.println("Drop food element");
 					//dropping = true;
+					
 				}
 				
 				if (rm.getPosition(this).equals(colony.getPosition())) {
-					if(curr.isPresent() && pm.containerContains(this, curr.get())){
+					if(curr.isPresent() && rm.getPosition(this).equals(curr.get().getDeliveryLocation()) && pm.containerContains(this, curr.get()) 
+							&& pm.getVehicleState(this).equals(VehicleState.IDLE)){
 						pm.deliver(this, curr.get(), time);
-						
+						curr = Optional.absent();
 						Environment.notifyDelivery();
 					}
 					rest(time.getTimeLeft());
-					curr = Optional.absent();
 				}
 			}		
 			
@@ -141,8 +143,8 @@ class GFAnt extends Ant implements CommUser {
 				//if so: curr becomes the detected prey and we moveTo(curr)
 				// if not: ask a gradient vector and move or moveTo
 				FoodSource seen = Environment.getFoodFromVisual(this);
-				if(seen instanceof DroppedFoodSource)
-					System.out.println("seen dropped food source");
+				//if(seen instanceof DroppedFoodSource)
+					//System.out.println("seen dropped food source");
 				curr = Optional.fromNullable((Parcel) seen);
 			}
 
@@ -182,7 +184,7 @@ class GFAnt extends Ant implements CommUser {
 						positions.add(1, it.getDeliveryLocation());
 						
 						Environment.dropFood((FoodElement) it, positions);
-						System.out.println("Drop food element");
+						//System.out.println("Drop food element");
 						dropping = true;
 					}
 					
@@ -299,7 +301,7 @@ class GFAnt extends Ant implements CommUser {
 				}else{		//food in cargo: determine if we expect to need resting when we deliver
 					if(getEnergy() < 0){ //We need a good number here, probably doesn't matter much
 						result = true;
-						System.out.println("true because carrying emptied the energy down to 0");
+						//System.out.println("true because carrying emptied the energy down to 0");
 					}
 				}
 			}else {			//roaming the gradient field without parcel

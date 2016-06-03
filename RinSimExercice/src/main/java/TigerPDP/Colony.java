@@ -29,8 +29,8 @@ public class Colony extends Depot {
 	public boolean occupyForResting(Ant ant) {
 		if(isOccupiedByOtherAnt(ant))
 			return false;
-		if(restingAnt == null)
-			System.out.println("new ant occupies");
+		//if(restingAnt == null)
+			//System.out.println("new ant occupies");
 		restingAnt = ant;
 		return true;
 	}
