@@ -12,7 +12,7 @@ public abstract class Ant extends Vehicle {
 	protected final double RESTING_RATE;
 	protected double energy;
 	private static final double SPEED = 1000d;
-	protected final double maxEnergy;	//tune
+	protected final double maxEnergy;
 	protected boolean resting;
 	
 	protected Optional<Parcel> curr;
@@ -55,18 +55,19 @@ public abstract class Ant extends Vehicle {
 	}
 	
 	protected void rest(long time) {
-		if(!Environment.mayRest(this)) {
-			//System.out.println("2 ants trying to rest at "+getPosition().get());
+		if(!Environment.mayRest(this))
 			return;
-		}
-		//if(!resting)
-			//System.out.println("starting to rest with energy "+energy);
+		
 		resting = true;
 		double rate;
 		if(energy < 0)
-			rate = RESTING_RATE / 5;
+			//This is the penalty for the ants 
+			//RESTING_RATE / 1 -> low penalty
+			//RESTING_RATE / 5 -> medium penalty
+			//RESTING_RATE / 10 -> high penalty
+			rate = RESTING_RATE / 5; 
 		else rate = RESTING_RATE;
-		energy += time * rate;	// tune
+		energy += time * rate;	
 		if(energy >= maxEnergy) {
 			energy = maxEnergy;
 			resting = false;
@@ -82,7 +83,7 @@ public abstract class Ant extends Vehicle {
 		return Optional.of(getRoadModel().getPosition(this));
 	}
 	
-	public boolean isTaken() {		//TODO: private? all interactions through communication eventually
+	public boolean isTaken() {
 		return ! (this.curr.equals(Optional.<Parcel>absent()));
 	}
 }

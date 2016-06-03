@@ -76,12 +76,14 @@ import TigerPDP.TaxiBase.Pair;
 public final class Environment {
 
 	// Independent variables
-	public static final int MAP_SCALE = 100;
-	public static final boolean CENTRALIZED = true;
+	public static final int MAP_SCALE = 10;
+	private static final int NUM_ANTS = 20;
+	public static final boolean CENTRALIZED = false;
 	private static final boolean TESTING = true;
-	static final boolean BOLD_AGENTS = false;		//try out different strategies
-	static final boolean DYNAMIC_AGENTS = false;
-	private static final int NUM_ANTS = 100;
+	
+	//Try out different strategies
+	static final boolean BOLD_AGENTS = true;		
+	static final boolean DYNAMIC_AGENTS = true;
 
 	private static final int NUM_COLONIES = (NUM_ANTS-1)/4+1;
 	private static final int ANT_CAPACITY = 1;
@@ -161,8 +163,6 @@ public final class Environment {
 
 		final View.Builder view = createGui(testing, display, m, list);
 
-		// use map of leuven
-
 		final Simulator simulator = Simulator.builder()
 				//.addModel(RoadModelBuilders.staticGraph(loadGraph(graphFile)))
 				.addModel(
@@ -177,7 +177,8 @@ public final class Environment {
 
 		final RoadModel roadModel = simulator.getModelProvider().getModel(
 				RoadModel.class);
-		// add depots, taxis and parcels to simulator
+		
+		//Create the setup for the centralized or gradient field simulation
 		if (CENTRALIZED)
 			registerCentralizedSimulator(endTime, simulator, rng, roadModel);
 		else
@@ -187,22 +188,26 @@ public final class Environment {
 		return simulator;
 	}
 
+	//Settings for the centralized approach
 	private static void registerCentralizedSimulator(final long endTime,
 			final Simulator simulator, final RandomGenerator rng,
 			final RoadModel roadModel) {
-
+		
+		//Adding and register the colonies in the environment
 		for (int i = 0; i < NUM_COLONIES; i++) {
 			Colony colony = new Colony (roadModel.getRandomPosition(rng), 0);
 			simulator.register(colony); 
-			//Environment.register(colony);
 			register(colony);
 		}
+		
+		//Adding and register the ants in the environment
 		for (int i = 0; i < NUM_ANTS; i++) {
 			CentralizedAnt nca = new CentralizedAnt(roadModel.getRandomPosition(rng), ANT_CAPACITY);
 			simulator.register(nca);
 			register(nca);
 		}
-
+		
+		//Adding and register the food sources in the environment
 		for (int i = 0; i < NUM_FOOD_SOURCE; i++) {
 			generateFoodSource(simulator, rng, roadModel);
 		}
@@ -215,13 +220,13 @@ public final class Environment {
 					simulator.stop();
 				} else 
 				{
-
+					
+					// 1: Generate new food sources
 					if (rng.nextDouble() < NEW_FOOD_SOURCE_PROB*(MAX_SOURCES-SOURCES.size())/MAX_SOURCES){ //&& SOURCES.size() < MAX_SOURCES) {
 						generateFoodSource(simulator, rng, roadModel);
 					}
 
-					// 1: check starving and empty food sources
-
+					// 2: check starving and empty food sources
 					for(FoodSource source : new ArrayList<FoodSource>(SOURCES)) {
 						if(source.isExpired()) {
 							SOURCES.remove(source);
@@ -230,7 +235,7 @@ public final class Environment {
 
 					assignments = new HashMap<CentralizedAnt,FoodSource>();
 
-					//1. get the positions (via comm or references)
+					// 3: get the positions
 					HashMap<FoodSource,Point> fsPositions = new HashMap<FoodSource,Point>();
 					for(FoodSource fs : SOURCES)
 						fsPositions.put(fs,fs.getPickupLocation());
@@ -238,12 +243,14 @@ public final class Environment {
 					for(CentralizedAnt ca : CENTRALIZED_ANTS)
 						caPositions.put(ca, ca.getPosition().get());
 
-					//2. extract closest pair and find next
+					// 4: extract closest pair and find next
 					ArrayList<CentralizedAnt> remainingAnts = new ArrayList<CentralizedAnt>(CENTRALIZED_ANTS);
 					for(CentralizedAnt ant : CENTRALIZED_ANTS){
 						if(ant.isTaken())
 							remainingAnts.remove(ant);
 					}
+					
+					// 5: Assign food elements with ants when it is possible
 					ArrayList<FoodSource> remainingSources = new ArrayList<FoodSource>(SOURCES);
 					Map<Pair,Double> shortestFound = new HashMap<Pair,Double>();
 
@@ -258,28 +265,28 @@ public final class Environment {
 							distances = MapUtil.sortByValue(distances);
 							Pair first = null;
 							double firstDist = 10;
-							for(Map.Entry<Pair, Double> entry : distances.entrySet()) {		//this for loop is just a complicated way to extract the first element
+							for(Map.Entry<Pair, Double> entry : distances.entrySet()) {		
+								//this for loop is just a complicated way to extract the first element
 								if(first == null) {
 									first = entry.getKey();
 									firstDist = entry.getValue();
 								}
 							}
-							shortestFound.put(first,firstDist);
 							//found the shortest for current customer
+							shortestFound.put(first,firstDist);
 						}
 						// found the shortest for each customer
 						//now sort again
 						shortestFound = MapUtil.sortByValue(shortestFound);
 						Pair absoluteShortest = null;
-						//		doub le shortestDist = 10;
 						for(Map.Entry<Pair, Double> entry : shortestFound.entrySet()) {
 							if(absoluteShortest == null) {
 								absoluteShortest = entry.getKey();
-								//System.out.println("found distance: "+ entry.getValue());
 							}
 						}
+						
 						//we found and now use the absolute minimal distance pair found
-						//if the ant can reach it!!
+						//if the ant can reach it
 						if(canDeliver(absoluteShortest.v,absoluteShortest.c)) {
 							assignments.put(absoluteShortest.v, absoluteShortest.c);
 							remainingSources.remove(absoluteShortest.c);
